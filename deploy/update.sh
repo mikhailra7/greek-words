@@ -8,6 +8,7 @@ if docker compose ps --status running --services 2>/dev/null | grep -x backend >
   deploy/backup.sh
 fi
 git pull --ff-only
-docker compose up -d --build
+# --force-recreate: without it Compose kept the backend on the old image after a rebuild.
+docker compose up -d --build --force-recreate --wait
 docker image prune -f >/dev/null
 docker compose ps
