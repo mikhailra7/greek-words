@@ -4,7 +4,7 @@
 #   deploy/update.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-if docker compose ps --status running --services 2>/dev/null | grep -qx backend; then
+if docker compose ps --status running --services 2>/dev/null | grep -x backend >/dev/null; then
   deploy/backup.sh
 fi
 git pull --ff-only

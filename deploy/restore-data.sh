@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 archive=${1:?"Укажите архив: deploy/restore-data.sh backups/<файл>.tar.gz [--force]"}
 force=${2:-}
 [ -f "$archive" ] || { echo "Нет файла $archive" >&2; exit 1; }
-tar -tzf "$archive" | grep -qx 'data/greek.db' || { echo "В архиве нет data/greek.db" >&2; exit 1; }
+tar -tzf "$archive" | grep -x 'data/greek.db' >/dev/null || { echo "В архиве нет data/greek.db" >&2; exit 1; }
 if [ -f data/greek.db ] && [ "$force" != "--force" ]; then
   echo "data/greek.db уже есть. Чтобы заменить (текущая база будет сохранена рядом), добавьте --force" >&2
   exit 1

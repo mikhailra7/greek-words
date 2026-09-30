@@ -85,7 +85,7 @@ jobs:
           test "$(curl -sk https://localhost/api/health)" = '{"status":"ok"}'
           test "$(get /)" = 200
           test "$(get /dictionaries/1)" = 200          # SPA route -> index.html
-          curl -sk https://localhost/study | grep -q '<div id="root">'
+          curl -sk https://localhost/study | grep '<div id="root">' >/dev/null
           test "$(get /api/docs)" = 404                # ENV=prod
           test "$(get /media/images/x.jpg)" = 401      # no session
           test "$(get /api/dictionaries)" = 401
