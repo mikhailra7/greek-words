@@ -87,6 +87,10 @@ jobs:
           test "$(get /dictionaries/1)" = 200          # SPA route -> index.html
           curl -sk https://localhost/study | grep '<div id="root">' >/dev/null
           test "$(get /api/docs)" = 404                # ENV=prod
+          # Hashed assets are cached for good, the SPA shell is revalidated.
+          asset=$(curl -sk https://localhost/ | grep -o '/assets/[^"]*\.js' | head -1)
+          curl -skI "https://localhost$asset" | grep -i '^cache-control:.*immutable'
+          curl -skI https://localhost/ | grep -i '^cache-control: no-cache'
           test "$(get /media/images/x.jpg)" = 401      # no session
           test "$(get /api/dictionaries)" = 401
           # First user becomes admin; the cookie must be Secure; media works with a session.

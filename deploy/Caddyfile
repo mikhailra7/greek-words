@@ -27,7 +27,10 @@
 		root * /srv
 		# index.html, sw.js and the manifest must be revalidated so a deploy shows up at once;
 		# files in /assets have a content hash in the name and never change.
-		header Cache-Control "no-cache"
+		# Disjoint matchers: Caddy orders same-name directives by path specificity, so a bare
+		# "header" would run after the /assets/* one and override it.
+		@shell not path /assets/*
+		header @shell Cache-Control "no-cache"
 		header /assets/* Cache-Control "public, max-age=31536000, immutable"
 		# Client-side routes (/dictionaries/3, /study …) all get the SPA.
 		try_files {path} /index.html
