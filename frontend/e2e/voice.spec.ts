@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { seedDictionary } from './helpers.ts'
+import { fakeSpeech, seedDictionary } from './helpers.ts'
 
 test('«Озвучка» in the profile: site voice (male, speed) or the device voice', async ({
   browser,
@@ -27,17 +27,7 @@ test('«Озвучка» in the profile: site voice (male, speed) or the device 
     if (route.request().resourceType() === 'media') audio.push(route.request().url())
     return route.fulfill({ status: 200, contentType: 'audio/mpeg', body: '' })
   })
-  await page.addInitScript(() => {
-    const w = window as unknown as { spoken: { text: string; rate: number }[] }
-    w.spoken = []
-    speechSynthesis.speak = (u: SpeechSynthesisUtterance) => {
-      // rate is stored as a 32-bit float (0.8 → 0.800000011…)
-      if (u.text) w.spoken.push({ text: u.text, rate: Math.round(u.rate * 100) / 100 })
-    }
-    // Pretend the device has a Greek voice.
-    speechSynthesis.getVoices = () => [{ lang: 'el-GR', name: 'Melina' } as SpeechSynthesisVoice]
-  })
-  const spoken = () => page.evaluate(() => (window as unknown as { spoken: unknown[] }).spoken)
+  const { spoken } = await fakeSpeech(page)
 
   await page.goto('/profile')
   const voice = page.getByRole('radiogroup', { name: 'Голос', exact: true })
@@ -70,7 +60,56 @@ test('«Озвучка» in the profile: site voice (male, speed) or the device 
   await openDictionary()
   await page.getByRole('button', { name: 'Произнести το νερό' }).click()
   await expect.poll(spoken).toEqual([{ text: 'το νερό', rate: 0.8 }])
+  // Again and again: the engine is never left "busy" (on iPhone it went silent after the first).
+  await page.getByRole('button', { name: 'Произнести το νερό' }).click()
+  await page.waitForTimeout(300)
+  await page.getByRole('button', { name: 'Произнести το νερό' }).click()
+  await expect.poll(async () => (await spoken()).length).toBe(3)
+  await page.waitForTimeout(2000) // longer than the start timeout: no fallback happened
   expect(audio.length).toBe(before)
+
+  await ctx.close()
+})
+
+test('device voice that never starts: the site voice plays instead, every time', async ({
+  browser,
+  request,
+}, testInfo) => {
+  const dict = await seedDictionary(request, `Тишина ${Date.now()}`, [
+    { article: 'το', greek: 'νερό', translations_ru: ['вода'] },
+  ])
+  const invite = await (await request.post('/api/admin/invites', { data: {} })).json()
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+  const reg = await ctx.request.post('/api/auth/register', {
+    data: {
+      username: `stuck_${testInfo.project.name}`,
+      password: 'voice-pass',
+      invite_code: invite.code,
+    },
+  })
+  expect(reg.ok()).toBeTruthy()
+  await ctx.request.put('/api/me/settings/voice', {
+    data: { value: { device: true, male: false, speed: -10 } },
+  })
+  const page = await ctx.newPage()
+  const audio: string[] = []
+  await page.route(/\/api\/words\/\d+\/audio/, (route) => {
+    if (route.request().resourceType() === 'media') audio.push(route.request().url())
+    return route.fulfill({ status: 200, contentType: 'audio/mpeg', body: '' })
+  })
+  const { spoken } = await fakeSpeech(page, 'stuck')
+
+  const settingsLoaded = page.waitForResponse(/\/api\/me\/settings$/)
+  await page.goto(`/dictionaries/${dict}`)
+  await settingsLoaded
+  const button = page.getByRole('button', { name: 'Произнести το νερό' })
+  await button.click()
+  await expect.poll(spoken).toHaveLength(1) // the device voice was tried first…
+  expect(audio).toHaveLength(0)
+  await expect.poll(() => audio.length, { timeout: 4000 }).toBe(1) // …then the site voice
+  await button.click()
+  await expect.poll(spoken).toHaveLength(2)
+  await expect.poll(() => audio.length, { timeout: 4000 }).toBe(2)
 
   await ctx.close()
 })
