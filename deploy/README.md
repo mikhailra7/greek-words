@@ -11,6 +11,9 @@
 `data/` (SQLite, черновики импорта), `media/` (картинки и звук), `backups/` (архивы).
 Код приходит из GitHub, данные — архивом с ноутбука (`deploy/pack-data.sh`).
 
+**Сейчас:** `https://194-226-112-127.sslip.io` — VPS 194.226.112.127 (Ubuntu 24.04, 2 vCPU,
+2 ГБ RAM, 20 ГБ), пользователь `ubuntu`, проект в `/home/ubuntu/greek`. Вход только по SSH-ключу.
+
 Требования к VPS: Ubuntu 24.04 или Debian 12, минимум 1 vCPU / 1 ГБ RAM (+ swap, скрипт
 создаёт 2 ГБ) / 15 ГБ диска, лучше 2 vCPU / 2 ГБ / 25+ ГБ. Домен с A-записью на IP сервера.
 
@@ -20,17 +23,32 @@
 
 ```bash
 scp deploy/server-setup.sh root@<IP>:
-ssh root@<IP> 'bash server-setup.sh greek'
+ssh root@<IP> 'bash server-setup.sh ubuntu'
 ```
 
 Обновляет систему, ставит Docker, git, firewall (22, 80, 443), автообновления безопасности,
-fail2ban, swap 2 ГБ; создаёт пользователя `greek` в группе docker с SSH-ключами root.
+fail2ban, swap 2 ГБ; добавляет пользователя в группу docker и копирует ему SSH-ключи root.
 
-Проверить вход по ключу: `ssh greek@<IP>`. Только после этого отключить вход по паролю:
-в `/etc/ssh/sshd_config` — `PasswordAuthentication no` и `PermitRootLogin prohibit-password`,
-затем `systemctl reload ssh`.
+**Пользователь должен иметь uid 1000** — под этим uid работает бэкенд в контейнере и ему
+принадлежат `data/` и `media/`. В образах Ubuntu это уже существующий `ubuntu`; всё дальнейшее
+(`update.sh`, бэкапы, cron) — под ним, **без sudo**, иначе файлы достанутся root.
 
-### 2. Код и настройки (под пользователем greek)
+Проверить вход по ключу: `ssh ubuntu@<IP>`. Только после этого отключить вход по паролю
+(файл `00-…` читается раньше `50-cloud-init.conf`, который пароль разрешает):
+
+```bash
+sudo tee /etc/ssh/sshd_config.d/00-hardening.conf <<'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+EOF
+sudo sshd -t && sudo systemctl reload ssh
+```
+
+Если сервер просит перезагрузку после обновлений (`/var/run/reboot-required`) — перезагрузить
+до запуска сайта.
+
+### 2. Код и настройки (под пользователем ubuntu)
 
 ```bash
 git clone https://github.com/mikhailra7/greek-words.git greek
@@ -54,7 +72,7 @@ mkdir -p data media backups
 
 ```bash
 make pack-data                                   # -> backups/greek-data-<дата>.tar.gz
-scp backups/greek-data-<дата>.tar.gz greek@<IP>:greek/backups/
+scp backups/greek-data-<дата>.tar.gz ubuntu@<IP>:greek/backups/
 ```
 
 На сервере:
@@ -83,17 +101,18 @@ docker compose logs -f web       # получение сертификата
 
 ```bash
 sudo tee /etc/cron.d/greek-backup >/dev/null <<'EOF'
-30 3 * * * root /home/greek/greek/deploy/backup.sh >> /var/log/greek-backup.log 2>&1
+30 3 * * * ubuntu /home/ubuntu/greek/deploy/backup.sh >> /home/ubuntu/greek/backups/backup.log 2>&1
 EOF
 ```
 
 Каждую ночь в `backups/` появляется `greek-data-<дата>.tar.gz` (база целостной копией через
-SQLite backup API, `media/`, `data/imports/`), хранятся последние 14 (`KEEP=…`).
+SQLite backup API, `media/`, `data/imports/`), хранятся последние 14 (`KEEP=…`). Время —
+по часовому поясу сервера (сейчас Москва).
 
 Копии на том же диске не спасут, если пропадёт сервер, — регулярно забирайте их на ноутбук:
 
 ```bash
-deploy/pull-backups.sh greek@<IP>
+deploy/pull-backups.sh ubuntu@<IP>
 ```
 
 Мониторинг доступности (по желанию): бесплатный UptimeRobot или аналог на
@@ -104,8 +123,8 @@ deploy/pull-backups.sh greek@<IP>
 После push в `main` (и зелёного CI):
 
 ```bash
-ssh greek@<IP>
-cd greek && deploy/update.sh     # бэкап → git pull → пересборка → перезапуск
+ssh ubuntu@<IP>
+cd greek && deploy/update.sh     # без sudo; бэкап → git pull → пересборка → перезапуск
 ```
 
 ## Восстановление из бэкапа

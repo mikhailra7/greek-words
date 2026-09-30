@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Once, on a fresh Ubuntu 24.04 / Debian 12 VPS, as root:
-#   bash server-setup.sh <deploy-user>
+#   bash server-setup.sh <deploy-user>      (uid 1000; on Ubuntu images: ubuntu)
 # Updates the system, installs Docker (official repo), git, firewall (22, 80, 443),
 # automatic security updates, fail2ban for SSH, a 2 GB swap file if there is no swap,
 # and a deploy user in the docker group with root's SSH keys.
@@ -54,6 +54,10 @@ if ! id "$user" >/dev/null 2>&1; then
   adduser --disabled-password --gecos "" "$user"
 fi
 usermod -aG docker "$user"
+if [ "$(id -u "$user")" != 1000 ]; then
+  echo "ВНИМАНИЕ: у $user uid $(id -u "$user"), а бэкенд в контейнере работает как uid 1000 —" \
+       "возьмите пользователя с uid 1000 (на Ubuntu это ubuntu), см. deploy/README.md" >&2
+fi
 if [ -f /root/.ssh/authorized_keys ]; then
   home=$(getent passwd "$user" | cut -d: -f6)
   install -d -m 700 -o "$user" -g "$user" "$home/.ssh"
