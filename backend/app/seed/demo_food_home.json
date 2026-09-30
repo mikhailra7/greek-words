@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "title": "Демо: еда и дом",
+  "description": "Тестовый словарь для разработки. Можно удалить.",
+  "words": [
+    {"article": "το", "greek": "νερό", "transcription": "to neró", "translations_ru": ["вода"], "part_of_speech": "noun", "image_emoji": "💧"},
+    {"article": "το", "greek": "ψωμί", "transcription": "to psomí", "translations_ru": ["хлеб"], "part_of_speech": "noun", "image_emoji": "🍞"},
+    {"article": "ο", "greek": "καφές", "transcription": "o kafés", "translations_ru": ["кофе"], "part_of_speech": "noun", "image_emoji": "☕"},
+    {"article": "το", "greek": "τσάι", "transcription": "to tsái", "translations_ru": ["чай"], "part_of_speech": "noun", "image_emoji": "🍵"},
+    {"article": "το", "greek": "γάλα", "transcription": "to gála", "translations_ru": ["молоко"], "part_of_speech": "noun", "image_emoji": "🥛"},
+    {"article": "το", "greek": "τυρί", "transcription": "to tirí", "translations_ru": ["сыр"], "part_of_speech": "noun", "image_emoji": "🧀"},
+    {"article": "το", "greek": "μήλο", "transcription": "to mílo", "translations_ru": ["яблоко"], "part_of_speech": "noun", "image_emoji": "🍎"},
+    {"article": "το", "greek": "κρασί", "transcription": "to krasí", "translations_ru": ["вино"], "part_of_speech": "noun", "image_emoji": "🍷"},
+    {"article": "η", "greek": "μπίρα", "transcription": "i bíra", "translations_ru": ["пиво"], "part_of_speech": "noun", "image_emoji": "🍺"},
+    {"article": "το", "greek": "σπίτι", "transcription": "to spíti", "translations_ru": ["дом"], "part_of_speech": "noun", "image_emoji": "🏠"},
+    {"article": "η", "greek": "κουζίνα", "transcription": "i kuzína", "translations_ru": ["кухня"], "part_of_speech": "noun", "image_emoji": "🍳"},
+    {"article": "το", "greek": "τραπέζι", "transcription": "to trapézi", "translations_ru": ["стол"], "part_of_speech": "noun"},
+    {"article": "η", "greek": "καρέκλα", "transcription": "i karékla", "translations_ru": ["стул"], "part_of_speech": "noun", "image_emoji": "🪑"},
+    {"article": "το", "greek": "παράθυρο", "transcription": "to paráthiro", "translations_ru": ["окно"], "part_of_speech": "noun", "image_emoji": "🪟"},
+    {"article": "η", "greek": "πόρτα", "transcription": "i pórta", "translations_ru": ["дверь"], "part_of_speech": "noun", "image_emoji": "🚪"}
+  ]
+}

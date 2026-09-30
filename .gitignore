@@ -1,0 +1,40 @@
+# secrets
+.env
+
+# runtime data
+data/
+media/
+import_inbox/
+import_outbox/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# node
+node_modules/
+frontend/dist/
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/
+
+# textbook scans (copyrighted, keep local)
+docs/samples/
+
+# local toolchain (Node unpacked here)
+.tools/
+*.tar.gz
+
+# archives (project transfer archive contains .env, DB and scans)
+*.zip
+
+# e2e artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/.auth/

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "title": "Демо: люди и глаголы",
+  "description": "Тестовый словарь для разработки. Можно удалить.",
+  "words": [
+    {"article": "ο", "greek": "άντρας", "transcription": "o ándras", "translations_ru": ["мужчина", "муж"], "part_of_speech": "noun", "image_emoji": "👨"},
+    {"article": "η", "greek": "γυναίκα", "transcription": "i yinéka", "translations_ru": ["женщина", "жена"], "part_of_speech": "noun", "image_emoji": "👩"},
+    {"article": "το", "greek": "παιδί", "transcription": "to pedí", "translations_ru": ["ребёнок"], "part_of_speech": "noun", "image_emoji": "🧒"},
+    {"article": "ο", "greek": "φίλος", "transcription": "o fílos", "translations_ru": ["друг"], "part_of_speech": "noun"},
+    {"article": "η", "greek": "μητέρα", "transcription": "i mitéra", "translations_ru": ["мать", "мама"], "part_of_speech": "noun"},
+    {"article": "ο", "greek": "πατέρας", "transcription": "o patéras", "translations_ru": ["отец", "папа"], "part_of_speech": "noun"},
+    {"greek": "είμαι", "transcription": "íme", "translations_ru": ["быть", "я есть"], "part_of_speech": "verb"},
+    {"greek": "έχω", "transcription": "ého", "translations_ru": ["иметь", "у меня есть"], "part_of_speech": "verb"},
+    {"greek": "θέλω", "transcription": "thélo", "translations_ru": ["хотеть"], "part_of_speech": "verb"},
+    {"greek": "μιλάω", "transcription": "miláo", "translations_ru": ["говорить"], "part_of_speech": "verb", "image_emoji": "🗣️"},
+    {"greek": "τρώω", "transcription": "tróo", "translations_ru": ["есть", "кушать"], "part_of_speech": "verb", "image_emoji": "🍽️"},
+    {"greek": "πίνω", "transcription": "píno", "translations_ru": ["пить"], "part_of_speech": "verb"},
+    {"greek": "μένω", "transcription": "méno", "translations_ru": ["жить", "проживать"], "part_of_speech": "verb"},
+    {"greek": "καλός", "transcription": "kalós", "translations_ru": ["хороший"], "part_of_speech": "adjective", "image_emoji": "👍"},
+    {"greek": "μεγάλος", "transcription": "megálos", "translations_ru": ["большой"], "part_of_speech": "adjective"},
+    {"greek": "ναι", "transcription": "ne", "translations_ru": ["да"], "part_of_speech": "other"},
+    {"greek": "όχι", "transcription": "óhi", "translations_ru": ["нет"], "part_of_speech": "other"}
+  ]
+}
