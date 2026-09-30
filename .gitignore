@@ -4,6 +4,7 @@
 # runtime data
 data/
 media/
+backups/
 import_inbox/
 import_outbox/
 

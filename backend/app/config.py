@@ -12,9 +12,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # "dev" locally; anything else (the server runs "prod") sends the session cookie with
+    # Secure and hides /api/docs.
     env: str = "dev"
     database_url: str = f"sqlite:///{PROJECT_ROOT / 'data' / 'greek.db'}"
-    # Public files (word images, audio), served at /media.
+    # Word images and audio; images are served at /media to signed-in users.
     media_dir: Path = PROJECT_ROOT / "media"
     # Private import working files (uploaded textbook PDFs, draft crops). Served only to admins.
     imports_dir: Path = PROJECT_ROOT / "data" / "imports"
@@ -32,7 +34,6 @@ class Settings(BaseSettings):
     tts_rate_ru: str = "+0%"
     # Stock pictures: Openverse needs no key; Pixabay is used instead when a key is set.
     pixabay_api_key: str = ""
-    session_secret: str = "change-me"
     max_users: int = 20
 
 

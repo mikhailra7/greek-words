@@ -1,9 +1,8 @@
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
-from app.api import api_router
+from app.api import api_router, media_files
 from app.config import settings
 
 FIELD_HINTS = {
@@ -36,8 +35,7 @@ def create_app() -> FastAPI:
     )
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.include_router(api_router)
-    settings.media_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
+    app.include_router(media_files.router)
     return app
 
 

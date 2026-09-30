@@ -5,7 +5,7 @@ PY := $(VENV)/bin/python
 # Prefer the project-local Node (unpacked into .tools/node) when present.
 export PATH := $(CURDIR)/.tools/node/bin:$(PATH)
 
-.PHONY: setup setup-backend setup-frontend dev backend frontend migrate test e2e lint fmt
+.PHONY: setup setup-backend setup-frontend dev backend frontend migrate test e2e lint lint-backend lint-frontend fmt build pack-data
 
 setup: setup-backend setup-frontend
 
@@ -37,10 +37,22 @@ test:
 e2e:
 	cd frontend && PLAYWRIGHT_BROWSERS_PATH=$(CURDIR)/.tools/ms-playwright npx playwright test
 
-lint:
+lint: lint-backend lint-frontend
+
+lint-backend:
 	cd $(BACKEND) && .venv/bin/ruff check . && .venv/bin/ruff format --check .
-	@if [ -d frontend/node_modules ]; then cd frontend && npm run lint; fi
+
+lint-frontend:
+	@if [ -d frontend/node_modules ]; then cd frontend && npm run lint && npm run format:check; fi
 
 fmt:
 	cd $(BACKEND) && .venv/bin/ruff check --fix . && .venv/bin/ruff format .
 	@if [ -d frontend/node_modules ]; then cd frontend && npm run format; fi
+
+# Production build of the SPA into frontend/dist (the server builds it inside Docker).
+build:
+	cd frontend && npm run build
+
+# DB + media + import drafts -> backups/greek-data-<date>.tar.gz, for moving to the server.
+pack-data:
+	deploy/pack-data.sh

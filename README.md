@@ -42,7 +42,9 @@ mkdir -p .tools && tar -xzf node-v24.*-darwin-arm64.tar.gz -C .tools && mv .tool
 | `make migrate` | применить миграции БД |
 | `make test` | тесты бэкенда (pytest) |
 | `make e2e` | тесты в браузере (Playwright): свой бэкенд на :8001 и чистая БД в `data/e2e` |
-| `make lint` / `make fmt` | ruff + oxlint / автоформат (ruff, prettier) |
+| `make lint` / `make fmt` | ruff + oxlint + prettier --check / автоформат (ruff, prettier) |
+| `make build` | прод-сборка фронтенда в `frontend/dist` |
+| `make pack-data` | база + картинки/звук + черновики импорта → `backups/greek-data-<дата>.tar.gz` (перенос на сервер) |
 
 Выдать права администратора из консоли (если в админке некому):
 
@@ -88,5 +90,19 @@ cd backend && .venv/bin/alembic revision --autogenerate -m "описание"
 | `import_inbox/`, `import_outbox/` | импорт через Claude Code | нет |
 | `docs/prompts/` | промпт и JSON-схема импорта | да |
 | `docs/samples/` | сканы учебника для проверки импорта | нет |
+| `backups/` | архивы данных (`make pack-data`, бэкапы с сервера) | нет |
+| `deploy/` | Caddyfile и скрипты сервера | да |
 
 API-документация в dev-режиме: http://localhost:5173/api/docs
+
+## Сервер
+
+Docker Compose: `backend` (FastAPI) + `web` (Caddy: HTTPS, фронтенд, прокси `/api` и `/media`).
+Установка, перенос данных, бэкапы и обновление — [deploy/README.md](deploy/README.md).
+
+```bash
+docker compose up -d --build     # на сервере, в .env задан DOMAIN
+deploy/update.sh                 # обновление: бэкап → git pull → пересборка
+```
+
+CI (GitHub Actions): линтеры, pytest, сборка фронтенда, e2e и проверка Docker-сборки целиком.

@@ -2,6 +2,7 @@
 
 python -m app.cli make-admin <username>
 python -m app.cli seed-demo          # two demo dictionaries for development
+python -m app.cli backup <file.db>   # consistent copy of the SQLite DB (safe while running)
 """
 
 import argparse
@@ -87,6 +88,37 @@ def import_prompt() -> int:
     return 0
 
 
+def backup(dest: str) -> int:
+    """Copies the live DB with SQLite's online backup API. A plain `cp` of a WAL database
+    that is being written to can give a broken copy."""
+    import sqlite3
+
+    from app.config import settings
+
+    url = settings.database_url
+    if not url.startswith("sqlite:///"):
+        print(f"Бэкап умеет только SQLite, а в DATABASE_URL: {url}", file=sys.stderr)
+        return 1
+    dst = Path(dest)
+    if dst.exists():
+        print(f"Файл уже есть: {dst}", file=sys.stderr)
+        return 1
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    src = sqlite3.connect(f"file:{url.removeprefix('sqlite:///')}?mode=ro", uri=True)
+    out = sqlite3.connect(dst)
+    try:
+        src.backup(out)
+        ok = out.execute("PRAGMA integrity_check").fetchone()[0]
+    finally:
+        out.close()
+        src.close()
+    if ok != "ok":
+        print(f"Копия повреждена: {ok}", file=sys.stderr)
+        return 1
+    print(f"копия базы: {dst}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -95,6 +127,8 @@ def main() -> int:
     sub.add_parser("seed-demo", help="создать демо-словари")
     sub.add_parser("seed-categories", help="базовые категории + разметка слов без категории")
     sub.add_parser("import-prompt", help="промпт импорта с текущим списком категорий")
+    p = sub.add_parser("backup", help="целостная копия базы SQLite (можно на работающем сайте)")
+    p.add_argument("dest")
     args = parser.parse_args()
     if args.command == "make-admin":
         return make_admin(args.username)
@@ -104,6 +138,8 @@ def main() -> int:
         return seed_categories()
     if args.command == "import-prompt":
         return import_prompt()
+    if args.command == "backup":
+        return backup(args.dest)
     return 2
 
 

@@ -1,0 +1,46 @@
+# Server: backend (FastAPI, one process) + web (Caddy with the built SPA, HTTPS).
+# Settings come from .env (DOMAIN, MAX_USERS, TTS_*, PIXABAY_API_KEY); see deploy/README.md.
+#   docker compose up -d --build
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      ENV: prod # always: Secure session cookie, no /api/docs
+    volumes:
+      - ./data:/app/data # SQLite, import drafts, backups (owned by uid 1000)
+      - ./media:/app/media # word pictures and audio
+    restart: unless-stopped
+    logging: *logging
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - caddy_data:/data # certificates: keep them, Let's Encrypt limits re-issuing
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  caddy_data:
+  caddy_config:
