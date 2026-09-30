@@ -145,13 +145,13 @@ function StudySession({
   const done = index >= words.length
   const word = words[index]
 
-  // 1 — next word (the card flies off to the right), -1 — back to the previous one (flies
-  // left). The first card has nothing before it: it just springs back.
+  // 1 — next word (the card flies off to the left, like turning a page), -1 — back to the
+  // previous one (flies right). The first card has nothing before it: it just springs back.
   const move = useCallback(
     (step: 1 | -1) => {
       if (leaving || done) return
       if (step === -1 && index === 0) return setDx(0)
-      setLeaving(step)
+      setLeaving(step === 1 ? -1 : 1)
       window.setTimeout(() => {
         setIndex((i) => i + step)
         setRevealed(!wordOnly)
@@ -221,7 +221,7 @@ function StudySession({
     if (!drag.current) return
     drag.current = null
     if (Math.abs(dx) > SWIPE_DISTANCE)
-      move(dx > 0 ? 1 : -1) // right — next, left — back
+      move(dx < 0 ? 1 : -1) // left — next, right — back
     else {
       if (Math.abs(dx) < TAP_DISTANCE) reveal()
       setDx(0)
@@ -320,6 +320,23 @@ function StudySession({
           </div>
 
           <button
+            onClick={() => move(-1)}
+            disabled={index === 0}
+            className="absolute bottom-3 left-3 z-10 rounded-full bg-slate-100 p-3 text-slate-600 shadow hover:bg-slate-200 disabled:opacity-30 disabled:shadow-none dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            aria-label="Предыдущее слово"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.2}
+              className="size-6"
+            >
+              <path d="M19 12H5M11 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <button
             onClick={() => move(1)}
             className="absolute right-3 bottom-3 z-10 rounded-full bg-blue-600 p-3 text-white shadow hover:bg-blue-700"
             aria-label="Следующее слово"
@@ -338,7 +355,7 @@ function StudySession({
       </div>
       <p className="pt-3 text-center text-xs text-slate-400">
         {revealed
-          ? 'Свайп вправо — следующее слово, влево — предыдущее'
+          ? 'Свайп влево — следующее слово, вправо — предыдущее'
           : 'Нажмите на карточку, чтобы перевернуть'}
       </p>
     </SessionShell>

@@ -1,12 +1,5 @@
 import { expect, test } from '@playwright/test'
-import {
-  activateOnly,
-  findWord,
-  fullGreek,
-  seedDictionary,
-  setSlider,
-  WORDS,
-} from './helpers.ts'
+import { activateOnly, findWord, fullGreek, seedDictionary, setSlider, WORDS } from './helpers.ts'
 
 test.beforeEach(async ({ request }, testInfo) => {
   const id = await seedDictionary(request, `Тренажёры ${testInfo.project.name} ${Date.now()}`)
@@ -35,7 +28,7 @@ test('study: cards, arrow, finish screen', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Начать' })).toBeVisible()
 })
 
-test('study: swipe right — next word, swipe left — previous', async ({ page }) => {
+test('study: swipe left — next word, swipe right — previous; ← button', async ({ page }) => {
   await page.goto('/study')
   await page.getByLabel('Показывать только слово').uncheck()
   await page.getByLabel('Озвучивать слова').uncheck()
@@ -57,19 +50,29 @@ test('study: swipe right — next word, swipe left — previous', async ({ page 
 
   await expect(page.getByText('1 / 3')).toBeVisible()
   const first = await shown()
-  await swipe(-150) // nothing before the first card: it springs back
+  const back = page.getByRole('button', { name: 'Предыдущее слово' })
+  await expect(back).toBeDisabled() // nothing before the first card
+  await swipe(150) // …and a swipe back just springs back
   await page.waitForTimeout(400)
   await expect(page.getByText('1 / 3')).toBeVisible()
   expect(await shown()).toBe(first)
 
-  await swipe(150)
+  await swipe(-150)
   await expect(page.getByText('2 / 3')).toBeVisible()
   const second = await shown()
   expect(second).not.toBe(first)
 
-  await swipe(-150)
+  await swipe(150)
   await expect(page.getByText('1 / 3')).toBeVisible()
   expect(await shown()).toBe(first) // the same word as before
+
+  // The ← button on the card goes back too.
+  await page.getByRole('button', { name: 'Следующее слово' }).click()
+  await expect(page.getByText('2 / 3')).toBeVisible()
+  await expect(back).toBeEnabled()
+  await back.click()
+  await expect(page.getByText('1 / 3')).toBeVisible()
+  expect(await shown()).toBe(first)
 
   // Laptop keys do the same: → next, ← back.
   await page.keyboard.press('ArrowRight')

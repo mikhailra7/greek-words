@@ -31,6 +31,11 @@ test('«Озвучка» in the profile: site voice (male, speed) or the device 
 
   await page.goto('/profile')
   const voice = page.getByRole('radiogroup', { name: 'Голос', exact: true })
+  // A new user starts with the device voice.
+  await expect(voice.getByRole('radio', { name: /Голос устройства/ })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
   await voice.getByRole('radio', { name: /Голос сайта/ }).click()
   await page.getByRole('radio', { name: /Мужской/ }).click()
   await page.getByRole('radio', { name: 'обычная' }).click()

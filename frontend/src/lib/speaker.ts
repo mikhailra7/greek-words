@@ -10,7 +10,9 @@
 // from the saved settings; every speak/preload/playUntilEnd call follows it.
 
 export type VoicePrefs = { device: boolean; male: boolean; speed: number }
-export const DEFAULT_VOICE: VoicePrefs = { device: false, male: false, speed: -10 }
+// The device voice by default (2026-10-01): on phones and Macs it answers at once; without a
+// Greek voice on the device the site's voice plays anyway.
+export const DEFAULT_VOICE: VoicePrefs = { device: true, male: false, speed: -10 }
 export const SPEEDS = [-30, -20, -10, 0, 10] as const
 
 let prefs: VoicePrefs = DEFAULT_VOICE
