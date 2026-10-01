@@ -338,13 +338,17 @@ function ReadMode({
 
       <div className="sticky bottom-3 flex justify-center gap-2">
         {settings.stepByStep ? (
-          <Button onClick={stepNext} className="px-6 shadow-lg">
+          <Button
+            onClick={stepNext}
+            // 30% larger than the other buttons (24×10 px padding, 14 px text, 20 px arrow).
+            className="rounded-2xl px-[31px] py-[13px] text-lg shadow-lg"
+          >
             {current === null ? (
               'Первая реплика →'
             ) : atEnd ? (
               '↺ С начала'
             ) : (
-              <span aria-label="Следующая реплика" className="text-xl leading-none">
+              <span aria-label="Следующая реплика" className="text-[26px] leading-none">
                 <span aria-hidden="true">→</span>
               </span>
             )}
