@@ -3,6 +3,7 @@ import { activeSummaryText } from '../api/types.ts'
 import {
   IconBook,
   IconCards,
+  IconChat,
   IconHeadphones,
   IconPencil,
   IconShuffle,
@@ -26,6 +27,7 @@ const MODES = [
     hint: 'Слушать: греческий → русский',
     Icon: IconHeadphones,
   },
+  { to: '/dialogues', title: 'Диалоги', hint: 'Читать, слушать, учить по ролям', Icon: IconChat },
   { to: '/dictionaries', title: 'Словари', hint: 'Выбрать слова для тренировок', Icon: IconBook },
 ]
 

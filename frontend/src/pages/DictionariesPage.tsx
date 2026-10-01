@@ -74,6 +74,15 @@ export default function DictionariesPage() {
     }
     try {
       const body = JSON.parse(await file.text())
+      // One upload button for both kinds of file (SPEC «Диалоги», Д2): `type` tells them apart.
+      if (body?.type === 'dialogue') {
+        const dialogue = await api<{ id: number }>('/dialogues/import', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        })
+        navigate(`/dialogues/${dialogue.id}`)
+        return
+      }
       const created = await api<Dictionary>('/dictionaries/import', {
         method: 'POST',
         body: JSON.stringify(body),

@@ -136,7 +136,9 @@ async def create_from_package(
 
 
 @router.get("/prompt", response_class=PlainTextResponse)
-def get_prompt(_: AdminUser, db: DbSession, kind: Literal["import", "wordlist"] = "import") -> str:
+def get_prompt(
+    _: AdminUser, db: DbSession, kind: Literal["import", "wordlist", "dialogue"] = "import"
+) -> str:
     """The Claude prompt: everything after the first '---' line of docs/prompts/<kind>.md,
     with the current category list filled in."""
     return importing.render_prompt(db, kind)

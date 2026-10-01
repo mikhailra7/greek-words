@@ -3,6 +3,8 @@ import { GuestOnly, RequireAdmin, RequireAuth } from './auth/guards.tsx'
 import Layout from './components/Layout.tsx'
 import AdminPage from './pages/AdminPage.tsx'
 import CategoryPage from './pages/CategoryPage.tsx'
+import DialoguePage from './pages/DialoguePage.tsx'
+import DialoguesPage from './pages/DialoguesPage.tsx'
 import DictionariesPage from './pages/DictionariesPage.tsx'
 import DictionaryPage from './pages/DictionaryPage.tsx'
 import HomePage from './pages/HomePage.tsx'
@@ -36,6 +38,8 @@ export default function App() {
           <Route path="write" element={<WritePage />} />
           <Route path="mix" element={<MixPage />} />
           <Route path="listen" element={<ListenPage />} />
+          <Route path="dialogues" element={<DialoguesPage />} />
+          <Route path="dialogues/:id" element={<DialoguePage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route element={<RequireAdmin />}>
             <Route path="admin" element={<AdminPage />} />

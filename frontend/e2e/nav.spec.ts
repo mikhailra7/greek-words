@@ -8,7 +8,7 @@ test('phone: ☰ menu opens, navigates, closes on Back and on backdrop', async (
 
   await page.getByRole('button', { name: 'Открыть меню' }).click()
   await expect(menu).toBeVisible()
-  await expect(menu.getByRole('link')).toHaveCount(7)
+  await expect(menu.getByRole('link')).toHaveCount(8)
   await menu.getByRole('link', { name: 'Аудио повторение' }).click()
   await expect(page).toHaveURL(/\/listen$/)
   await expect(menu).toHaveCount(0)
@@ -36,7 +36,16 @@ test('laptop: all sections in one row on top, no ☰', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/dictionaries')
   await expect(page.getByRole('button', { name: 'Открыть меню' })).toBeHidden()
-  for (const name of ['Словари', 'Изучение', 'Переведи', 'Напиши', 'Микс', 'Аудио', 'Профиль']) {
+  for (const name of [
+    'Словари',
+    'Изучение',
+    'Переведи',
+    'Напиши',
+    'Микс',
+    'Аудио',
+    'Диалоги',
+    'Профиль',
+  ]) {
     await expect(page.getByRole('navigation').getByRole('link', { name })).toBeVisible()
   }
 })
@@ -54,6 +63,7 @@ test('start page: a menu of modes, one tap to each; the logo leads back to it', 
     'Напиши',
     'Микс заданий',
     'Аудио повторение',
+    'Диалоги',
     'Словари',
   ]) {
     await expect(tiles.filter({ has: page.getByText(name, { exact: true }) })).toBeVisible()

@@ -7,7 +7,7 @@ import { pluralWords, type ActiveSummary, type Word } from '../api/types.ts'
 import { Button, Card, Spinner } from '../components/ui.tsx'
 
 // Keys of per-user settings on the server (trainers + «voice» from the profile).
-export type TrainerKey = 'study' | 'translate' | 'write' | 'listen' | 'mix' | 'voice'
+export type TrainerKey = 'study' | 'translate' | 'write' | 'listen' | 'mix' | 'voice' | 'dialogue'
 
 let settingsCache: Promise<Record<string, Record<string, unknown>>> | null = null
 

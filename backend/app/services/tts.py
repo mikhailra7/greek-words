@@ -27,7 +27,7 @@ import soundfile as sf
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import Word
+from app.models import DialogueLine, Word
 from app.models.dictionary import AUDIO_FORMAT_VERSION, speech_hash
 from app.services import media
 
@@ -302,3 +302,62 @@ def _warm(word_ids: list[int], v: Voice, langs: tuple[Lang, ...], user_id: int |
                     fails += 1
                     if fails >= MAX_FAILS_IN_ROW:
                         return  # the service is down: stop, don't hammer it
+
+
+# --- dialogue lines (SPEC «Диалоги», Д5) ---
+#
+# A line is read as a whole sentence. Files: audio/dlg/<line id>_<voice>_<hash of the text>.mp3,
+# made on first request. A replaced dialogue gets new lines (new ids), so stale files are only
+# left behind by deletion — dialogue_line_files() lists them for that.
+
+DIALOGUE_DIR = "audio/dlg"
+
+
+def role_voice(speaker: int, rate: int | None = None) -> Voice:
+    """Site voice of a role: the first female, the second male, the third female again."""
+    return Voice(male=speaker % 2 == 1, rate=rate)
+
+
+def _line_rel(line: DialogueLine, v: Voice) -> str:
+    return f"{DIALOGUE_DIR}/{line.id}_{v.key('el')}_{speech_hash(line.greek)}.mp3"
+
+
+def ensure_line_audio(line: DialogueLine, v: Voice) -> Path:
+    path = settings.media_dir / _line_rel(line, v)
+    if not path.exists():
+        _generate(line.greek, path, "el", v, f"dialogue line {line.id}")
+    return path
+
+
+def dialogue_line_files(line_ids: list[int]) -> list[str]:
+    """Every voice of these lines (relative paths) — to delete along with the dialogue."""
+    root = settings.media_dir
+    return [
+        str(p.relative_to(root))
+        for line_id in line_ids
+        for p in (root / DIALOGUE_DIR).glob(f"{line_id}_*.mp3")
+    ]
+
+
+def warm_up_dialogue(line_ids: list[int]) -> None:
+    """Each line in its role's voice at the default speed, in the background."""
+    if line_ids and settings.tts_enabled:
+        _bulk.submit(_warm_lines, list(line_ids))
+
+
+def _warm_lines(line_ids: list[int]) -> None:
+    from app.db import SessionLocal
+
+    fails = 0
+    with SessionLocal() as db:
+        for line_id in line_ids:
+            line = db.get(DialogueLine, line_id)
+            if line is None:
+                continue
+            try:
+                ensure_line_audio(line, role_voice(line.speaker))
+                fails = 0
+            except TTSUnavailable:
+                fails += 1
+                if fails >= MAX_FAILS_IN_ROW:
+                    return

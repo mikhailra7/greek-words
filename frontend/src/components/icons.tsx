@@ -62,6 +62,13 @@ export const IconHeadphones = (p: IconProps) => (
   </Svg>
 )
 
+export const IconChat = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 5h11a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+    <path d="M19 9h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1v3l-4-3h-3" />
+  </Svg>
+)
+
 export const IconShuffle = (p: IconProps) => (
   <Svg {...p}>
     <path d="M3 7h3.5c2 0 3.3 1 4.5 3l2 4c1.2 2 2.5 3 4.5 3H21" />

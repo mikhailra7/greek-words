@@ -2,6 +2,7 @@
 
 from app.db import Base
 from app.models.category import Category, UserActiveCategory
+from app.models.dialogue import Dialogue, DialogueLine
 from app.models.dictionary import Dictionary, UserActiveDictionary, Word
 from app.models.importing import ImportDraftWord, ImportJob
 from app.models.training import AnswerLog, UserKnownWord
@@ -12,6 +13,8 @@ __all__ = [
     "AuthSession",
     "Category",
     "Base",
+    "Dialogue",
+    "DialogueLine",
     "Dictionary",
     "ImportDraftWord",
     "ImportJob",

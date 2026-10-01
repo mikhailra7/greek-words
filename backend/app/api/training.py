@@ -18,7 +18,7 @@ from app.services.spelling import check
 
 router = APIRouter(tags=["training"])
 
-SETTING_KEYS = {"study", "translate", "write", "listen", "mix", "voice"}
+SETTING_KEYS = {"study", "translate", "write", "listen", "mix", "voice", "dialogue"}
 
 
 def voice_from(value: dict | None) -> tts.Voice | None:

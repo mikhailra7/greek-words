@@ -4,6 +4,7 @@ from app.api import (
     admin,
     auth,
     categories,
+    dialogues,
     dictionaries,
     health,
     imports,
@@ -22,3 +23,4 @@ api_router.include_router(word_media.router)
 api_router.include_router(training.router)
 api_router.include_router(categories.router)
 api_router.include_router(known.router)
+api_router.include_router(dialogues.router)

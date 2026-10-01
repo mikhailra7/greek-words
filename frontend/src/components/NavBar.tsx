@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router'
 import {
   IconBook,
   IconCards,
+  IconChat,
   IconHeadphones,
   IconMenu,
   IconPencil,
@@ -18,6 +19,7 @@ const items = [
   { to: '/write', label: 'Напиши', Icon: IconPencil },
   { to: '/mix', label: 'Микс заданий', short: 'Микс', Icon: IconShuffle },
   { to: '/listen', label: 'Аудио повторение', short: 'Аудио', Icon: IconHeadphones },
+  { to: '/dialogues', label: 'Диалоги', Icon: IconChat },
   { to: '/profile', label: 'Профиль', Icon: IconUser },
 ]
 
@@ -39,7 +41,7 @@ export default function NavBar() {
 function DesktopNav() {
   return (
     <nav className="sticky top-0 z-10 hidden border-b border-slate-200 bg-white/95 backdrop-blur md:block dark:border-slate-800 dark:bg-slate-900/95">
-      <ul className="mx-auto flex max-w-3xl justify-center gap-1">
+      <ul className="mx-auto flex max-w-5xl flex-wrap justify-center gap-x-1">
         <li>
           <Link
             to="/"

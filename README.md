@@ -58,6 +58,12 @@ cd backend && .venv/bin/python -m app.cli make-admin <имя>
 cd backend && .venv/bin/python -m app.cli seed-demo
 ```
 
+Пример диалога «Знакомство» для раздела «Диалоги» (повторный запуск ничего не дублирует):
+
+```bash
+cd backend && .venv/bin/python -m app.cli seed-dialogues
+```
+
 Базовые категории и разметка слов без категории (повторный запуск ничего не дублирует):
 
 ```bash

@@ -46,7 +46,7 @@ CATEGORIES_PLACEHOLDER = "{{CATEGORIES}}"
 
 _F = TypeVar("_F", DraftFile, DictionaryFile)
 
-PROMPTS = {"import": "import.md", "wordlist": "wordlist.md"}
+PROMPTS = {"import": "import.md", "wordlist": "wordlist.md", "dialogue": "dialogue.md"}
 
 
 def render_prompt(db: Session, kind: str = "import") -> str:

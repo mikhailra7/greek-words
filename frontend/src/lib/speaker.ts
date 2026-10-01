@@ -21,10 +21,11 @@ export function setVoicePrefs(p: VoicePrefs): void {
   prefs = p
 }
 
-/** Server URL for the chosen voice. The default voice keeps the plain URL (same file). */
-export function voiceUrl(url: string): string {
+/** Server URL for the chosen voice. The default voice keeps the plain URL (same file).
+ * `male` overrides the profile's choice — dialogue roles have voices of their own. */
+export function voiceUrl(url: string, male: boolean = prefs.male): string {
   const params = []
-  if (prefs.male) params.push('voice=male')
+  if (male) params.push('voice=male')
   if (!url.includes('/audio/ru') && prefs.speed !== DEFAULT_VOICE.speed)
     params.push(`rate=${prefs.speed}`) // Russian is always read at normal speed
   if (!params.length) return url
@@ -161,9 +162,15 @@ function unlockElement(): void {
   })
 }
 
-async function playFile(url: string): Promise<'ok' | 'blocked' | 'failed'> {
+/** Per call: `male` — the site voice of a dialogue role instead of the profile's one. */
+export type SpeakOptions = { male?: boolean }
+
+async function playFile(
+  url: string,
+  opts: SpeakOptions = {},
+): Promise<'ok' | 'blocked' | 'failed'> {
   const a = player()
-  a.src = voiceUrl(url)
+  a.src = voiceUrl(url, opts.male)
   try {
     await a.play()
     unlocked = true
@@ -175,18 +182,18 @@ async function playFile(url: string): Promise<'ok' | 'blocked' | 'failed'> {
   }
 }
 
-export async function speak(url: string, text: string): Promise<void> {
+export async function speak(url: string, text: string, opts: SpeakOptions = {}): Promise<void> {
   player().pause()
   if (onDevice('el-GR')) {
     // Still inside the tap: unlock <audio> now, the fallback below comes too late for iOS.
     unlockElement()
     if (await deviceSpeak(text, 'el-GR')) return
-    await playFile(url) // the device voice didn't start: the site's voice instead
+    await playFile(url, opts) // the device voice didn't start: the site's voice instead
     return
   }
   cancelSpeech()
   // The server file didn't load (TTS down): the browser's own Greek voice.
-  if ((await playFile(url)) === 'failed') await deviceSpeak(text, 'el-GR')
+  if ((await playFile(url, opts)) === 'failed') await deviceSpeak(text, 'el-GR')
 }
 
 // Warm the browser cache for the next card.
@@ -205,17 +212,28 @@ export function preload(url: string): void {
 let settleCurrent: (() => void) | null = null
 
 /** Plays `url` and resolves when it has finished (or fell back to the other voice). */
-export async function playUntilEnd(url: string, text: string, lang: Lang): Promise<void> {
+export async function playUntilEnd(
+  url: string,
+  text: string,
+  lang: Lang,
+  opts: SpeakOptions = {},
+): Promise<void> {
   player().pause()
   if (onDevice(lang)) {
     if (await deviceSpeak(text, lang)) return
-    return fileUntilEnd(url, text, lang, false) // the device voice didn't start
+    return fileUntilEnd(url, text, lang, false, opts) // the device voice didn't start
   }
   cancelSpeech()
-  return fileUntilEnd(url, text, lang, true)
+  return fileUntilEnd(url, text, lang, true, opts)
 }
 
-function fileUntilEnd(url: string, text: string, lang: Lang, orDevice: boolean): Promise<void> {
+function fileUntilEnd(
+  url: string,
+  text: string,
+  lang: Lang,
+  orDevice: boolean,
+  opts: SpeakOptions,
+): Promise<void> {
   const a = player()
   return new Promise((resolve) => {
     let settled = false
@@ -240,7 +258,7 @@ function fileUntilEnd(url: string, text: string, lang: Lang, orDevice: boolean):
     settleCurrent = done
     a.addEventListener('ended', done)
     a.addEventListener('error', failed)
-    a.src = voiceUrl(url)
+    a.src = voiceUrl(url, opts.male)
     a.play()
       .then(() => (unlocked = true))
       .catch((e: DOMException) => (e.name === 'AbortError' ? undefined : failed()))

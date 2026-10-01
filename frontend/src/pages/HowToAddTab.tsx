@@ -256,7 +256,13 @@ function Trouble() {
   )
 }
 
-function PromptBox({ kind, label }: { kind: 'import' | 'wordlist'; label: string }) {
+export function PromptBox({
+  kind,
+  label,
+}: {
+  kind: 'import' | 'wordlist' | 'dialogue'
+  label: string
+}) {
   const [prompt, setPrompt] = useState('')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')

@@ -3,6 +3,7 @@
 python -m app.cli make-admin <username>
 python -m app.cli seed-demo          # two demo dictionaries for development
 python -m app.cli backup <file.db>   # consistent copy of the SQLite DB (safe while running)
+python -m app.cli seed-dialogues     # example dialogue «Знакомство»
 """
 
 import argparse
@@ -41,6 +42,24 @@ def seed_demo() -> int:
                 continue
             create_from_file(db, data, created_by_id=None)
             print(f"создан: {data.title} ({len(data.words)} слов)")
+    return 0
+
+
+def seed_dialogues() -> int:
+    """The example dialogues (app/seed/dialogue_*.json); an existing title is left alone."""
+    import json
+
+    from app.models import Dialogue
+    from app.services import dialogues
+
+    with SessionLocal() as db:
+        for path in sorted(SEED_DIR.glob("dialogue_*.json")):
+            data = dialogues.validate(json.loads(path.read_text(encoding="utf-8")))
+            if db.scalar(select(Dialogue.id).where(Dialogue.title == data.title)):
+                print(f"уже есть: {data.title}")
+                continue
+            dialogues.create(db, data, created_by_id=None)
+            print(f"создан диалог: {data.title} ({len(data.lines)} реплик)")
     return 0
 
 
@@ -125,6 +144,7 @@ def main() -> int:
     p = sub.add_parser("make-admin", help="выдать права администратора")
     p.add_argument("username")
     sub.add_parser("seed-demo", help="создать демо-словари")
+    sub.add_parser("seed-dialogues", help="пример диалога «Знакомство»")
     sub.add_parser("seed-categories", help="базовые категории + разметка слов без категории")
     sub.add_parser("import-prompt", help="промпт импорта с текущим списком категорий")
     p = sub.add_parser("backup", help="целостная копия базы SQLite (можно на работающем сайте)")
@@ -134,6 +154,8 @@ def main() -> int:
         return make_admin(args.username)
     if args.command == "seed-demo":
         return seed_demo()
+    if args.command == "seed-dialogues":
+        return seed_dialogues()
     if args.command == "seed-categories":
         return seed_categories()
     if args.command == "import-prompt":
