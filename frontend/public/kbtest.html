@@ -1,0 +1,103 @@
+<!doctype html>
+<!-- TEMPORARY (2026-10-01): which kind of text field survives Samsung Keyboard's input-method
+     picker (long-press on space) in Chrome on Android. Static, sends nothing. Delete after. -->
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Тест клавиатуры</title>
+    <style>
+      :root { color-scheme: light dark; --bg: #f8fafc; --card: #fff; --line: #cbd5e1; --muted: #64748b; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #020617; --card: #0f172a; --line: #334155; --muted: #94a3b8; } }
+      body { margin: 0; padding: 16px; background: var(--bg); font: 17px/1.4 system-ui, sans-serif; }
+      h1 { font-size: 22px; margin: 0 0 8px; }
+      p.note { color: var(--muted); margin: 0 0 16px; }
+      section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 14px; }
+      h2 { font-size: 17px; margin: 0 0 8px; }
+      h2 span { color: var(--muted); font-weight: normal; font-size: 14px; }
+      input, textarea, [contenteditable] { box-sizing: border-box; width: 100%; font: inherit; font-size: 20px; padding: 10px 12px;
+        border: 2px solid var(--line); border-radius: 12px; background: transparent; color: inherit; }
+      textarea { resize: none; overflow: hidden; }
+      [contenteditable] { min-height: 1.4em; }
+      .log { margin: 8px 0 0; font: 13px/1.35 ui-monospace, monospace; color: var(--muted); white-space: pre-wrap; max-height: 9em; overflow: auto; }
+      .bad { color: #dc2626; } .ok { color: #16a34a; }
+    </style>
+  </head>
+  <body>
+    <h1>Тест: выбор клавиатуры удержанием пробела</h1>
+    <p class="note">
+      В каждом поле: нажмите на поле, затем удерживайте пробел и выберите другую клавиатуру во
+      всплывающем окне. Запомните номера полей, где окно выбора <b>не закрылось само</b> и
+      клавиатура переключилась. Под каждым полем — журнал событий. Страница ничего не отправляет.
+    </p>
+
+    <section>
+      <h2>1. Как в «Напиши» <span>input + наши атрибуты</span></h2>
+      <input lang="el" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="по-гречески…" />
+      <div class="log"></div>
+    </section>
+
+    <section>
+      <h2>2. Простой input <span>без атрибутов, как на большинстве сайтов</span></h2>
+      <input />
+      <div class="log"></div>
+    </section>
+
+    <section>
+      <h2>3. Поле поиска <span>input type=search</span></h2>
+      <input type="search" />
+      <div class="log"></div>
+    </section>
+
+    <section>
+      <h2>4. Многострочное в одну строку <span>textarea rows=1</span></h2>
+      <textarea rows="1"></textarea>
+      <div class="log"></div>
+    </section>
+
+    <section>
+      <h2>5. Как у Google <span>textarea + атрибуты поля поиска Google</span></h2>
+      <textarea rows="1" role="combobox" aria-autocomplete="both" aria-expanded="false" autocapitalize="none" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="2048" name="q"></textarea>
+      <div class="log"></div>
+    </section>
+
+    <section>
+      <h2>6. Редактируемый блок <span>contenteditable</span></h2>
+      <div contenteditable="true" role="textbox"></div>
+      <div class="log"></div>
+    </section>
+
+    <script>
+      const t0 = performance.now()
+      const stamp = () => ((performance.now() - t0) / 1000).toFixed(1).padStart(6) + ' с  '
+      let current = null // the log of the field that has focus (or had it last)
+      const add = (log, text, cls) => {
+        if (!log) return
+        const line = document.createElement('div')
+        line.textContent = stamp() + text
+        if (cls) line.className = cls
+        log.prepend(line)
+      }
+      for (const section of document.querySelectorAll('section')) {
+        const field = section.querySelector('input, textarea, [contenteditable]')
+        const log = section.querySelector('.log')
+        field.addEventListener('focus', () => { current = log; add(log, 'фокус в поле', 'ok') })
+        field.addEventListener('blur', () => add(log, 'поле потеряло фокус', 'bad'))
+        field.addEventListener('input', () => add(log, 'ввод: «' + (field.value ?? field.textContent).slice(-12) + '»'))
+      }
+      window.addEventListener('blur', () => add(current, 'окно браузера потеряло фокус'))
+      window.addEventListener('focus', () => add(current, 'окно браузера снова в фокусе'))
+      document.addEventListener('visibilitychange', () => add(current, 'страница ' + (document.hidden ? 'скрыта' : 'видна')))
+      // The on-screen keyboard shrinks the visual viewport: a big jump up = keyboard closed.
+      if (window.visualViewport) {
+        let h = visualViewport.height
+        visualViewport.addEventListener('resize', () => {
+          const nh = visualViewport.height
+          if (Math.abs(nh - h) > 120) add(current, nh > h ? 'клавиатура скрылась' : 'клавиатура появилась', nh > h ? 'bad' : '')
+          h = nh
+        })
+      }
+    </script>
+  </body>
+</html>
