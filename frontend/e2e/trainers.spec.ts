@@ -146,6 +146,8 @@ test('translate hard mode: look-alike options, RU→GR only', async ({ page }) =
 test('mix: one task of each kind, labelled, mistakes tagged', async ({ page }) => {
   await page.goto('/mix')
   await page.getByLabel('Показывать правильный ответ сразу').check()
+  const screenKeyboard = page.getByLabel('Экранная клавиатура')
+  await screenKeyboard.check()
   await setSlider(page, 3)
   await page.getByRole('button', { name: 'Начать' }).click()
 
@@ -161,6 +163,9 @@ test('mix: one task of each kind, labelled, mistakes tagged', async ({ page }) =
       .textContent())!
     seen.push(hint)
     if (hint === 'Напишите по-гречески') {
+      // «Экранная клавиатура»: the site keyboard, the device one stays closed.
+      await expect(page.getByRole('group', { name: 'Греческая клавиатура' })).toBeVisible()
+      await expect(input).toHaveAttribute('inputmode', 'none')
       await input.fill('λάθος')
       await input.press('Enter')
       await expect(page.getByText('Ваш ответ')).toBeVisible()
@@ -184,6 +189,10 @@ test('mix: one task of each kind, labelled, mistakes tagged', async ({ page }) =
   await expect(page.getByText('Правильно 2 из 3')).toBeVisible()
   await expect(page.locator('li > p.text-xs')).toHaveText('Напиши') // the mistake's tag
   await expect(page.getByText('✗ λάθος')).toBeVisible()
+
+  await page.getByRole('button', { name: 'В меню' }).click()
+  await screenKeyboard.uncheck() // leave the shared user as it was
+  await page.waitForTimeout(700) // saved with a short debounce
 })
 
 test('write: on-screen Greek keyboard on a laptop only', async ({ page }, testInfo) => {
@@ -379,5 +388,48 @@ test('«Воспроизвести ответ»: the Greek word plays when the a
   await page.getByLabel('Ответ по-гречески').press('Enter')
   await page.getByRole('button', { name: 'В меню' }).click()
   await page.getByLabel('Воспроизвести ответ').uncheck()
+  await page.waitForTimeout(700) // saved with a short debounce
+})
+
+test('write: «Экранная клавиатура» — the site keyboard on a phone, the device one stays closed', async ({
+  page,
+}) => {
+  await page.goto('/write')
+  const setting = page.getByLabel('Экранная клавиатура')
+  await setting.check()
+  await setSlider(page, 1)
+  await page.getByRole('button', { name: 'Начать' }).click()
+
+  const keyboard = page.getByRole('group', { name: 'Греческая клавиатура' })
+  await expect(keyboard).toBeVisible() // on the phone project too
+  const input = page.getByLabel('Ответ по-гречески')
+  await expect(input).toHaveAttribute('inputmode', 'none') // the device keyboard never opens
+
+  // Type the answer with the site keys: an accented vowel = ΄, then the vowel.
+  const word = fullGreek(findWord((await page.locator('article p').textContent())!.trim()))
+  const accented: Record<string, string> = {
+    ά: 'α',
+    έ: 'ε',
+    ή: 'η',
+    ί: 'ι',
+    ό: 'ο',
+    ύ: 'υ',
+    ώ: 'ω',
+  }
+  for (const ch of word) {
+    if (ch === ' ') await keyboard.getByRole('button', { name: 'Пробел' }).click()
+    else {
+      if (accented[ch]) await keyboard.getByRole('button', { name: 'Ударение' }).click()
+      await keyboard.getByRole('button', { name: ch, exact: true }).click()
+    }
+  }
+  await expect(input).toHaveValue(word)
+  await expect(input).toBeFocused()
+  await page.getByRole('button', { name: 'Проверить' }).click()
+  await expect(page.getByText('Верно!')).toBeVisible()
+
+  await input.press('Enter')
+  await page.getByRole('button', { name: 'В меню' }).click()
+  await setting.uncheck() // leave the shared user as it was
   await page.waitForTimeout(700) // saved with a short debounce
 })

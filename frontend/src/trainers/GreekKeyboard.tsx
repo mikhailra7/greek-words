@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
-// On-screen Greek keyboard for «Напиши» on a laptop (phones have their own). Standard Greek
+// On-screen Greek keyboard for «Напиши»: always on a laptop; on a phone only with the
+// «Экранная клавиатура» setting (then the phone's own keyboard stays closed). Standard Greek
 // layout; ΄ (τόνος) and ¨ (διαλυτικά) are dead keys like on a real one: press, then the vowel.
 const ROWS = [
   ['ς', 'ε', 'ρ', 'τ', 'υ', 'θ', 'ι', 'ο', 'π'],
@@ -37,10 +38,13 @@ export default function GreekKeyboard({
   onInput,
   onBackspace,
   disabled,
+  always = false,
 }: {
   onInput: (text: string) => void
   onBackspace: () => void
   disabled: boolean
+  /** Shown on phones too, not only from 768 px. */
+  always?: boolean
 }) {
   const [tonos, setTonos] = useState(false)
   const [dia, setDia] = useState(false)
@@ -104,15 +108,15 @@ export default function GreekKeyboard({
       role="group"
       aria-label="Греческая клавиатура"
       onMouseDown={(e) => e.preventDefault()}
-      className="hidden space-y-1.5 rounded-2xl bg-slate-100 p-2 md:block dark:bg-slate-800/60"
+      className={`${always ? 'block' : 'hidden md:block'} space-y-1.5 rounded-2xl bg-slate-100 p-1.5 sm:p-2 dark:bg-slate-800/60`}
     >
       {ROWS.map((row, i) => (
-        <div key={i} className="grid grid-cols-10 gap-1.5">
+        <div key={i} className="grid grid-cols-10 gap-1 sm:gap-1.5">
           {i === 0 && <span aria-hidden="true" />}
           {row.map(renderKey)}
         </div>
       ))}
-      <div className="grid grid-cols-10 gap-1.5">
+      <div className="grid grid-cols-10 gap-1 sm:gap-1.5">
         <button
           type="button"
           disabled={disabled}

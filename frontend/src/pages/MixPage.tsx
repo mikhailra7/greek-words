@@ -20,7 +20,13 @@ import {
 } from '../trainers/common.tsx'
 import WriteTask from '../trainers/WriteTask.tsx'
 
-type Settings = { count: number; showAnswer: boolean; hideKnown: boolean; speakAnswer: boolean }
+type Settings = {
+  count: number
+  showAnswer: boolean
+  hideKnown: boolean
+  speakAnswer: boolean
+  screenKeyboard: boolean
+}
 type TaskType = 'ru_gr' | 'gr_ru' | 'write'
 type Task = { type: TaskType; word: Word; options: Option[] }
 
@@ -38,6 +44,7 @@ export default function MixPage() {
     showAnswer: true,
     hideKnown: true,
     speakAnswer: false,
+    screenKeyboard: false,
   })
   const [tasks, setTasks] = useState<Task[] | null>(null)
   const [starting, setStarting] = useState(false)
@@ -68,6 +75,7 @@ export default function MixPage() {
         tasks={tasks}
         showAnswer={settings.showAnswer}
         speakAnswer={settings.speakAnswer}
+        screenKeyboard={settings.screenKeyboard}
         onExit={() => setTasks(null)}
         onRestart={start}
       />
@@ -94,6 +102,16 @@ export default function MixPage() {
               checked={settings.showAnswer}
               onChange={(showAnswer) => update({ showAnswer })}
             />
+            <div>
+              <Toggle
+                label="Экранная клавиатура"
+                checked={settings.screenKeyboard}
+                onChange={(screenKeyboard) => update({ screenKeyboard })}
+              />
+              <p className="mt-1 pl-9 text-sm text-slate-500">
+                В заданиях «Напиши» — греческая клавиатура сайта вместо клавиатуры телефона.
+              </p>
+            </div>
             <Toggle
               label="Воспроизвести ответ"
               checked={settings.speakAnswer}
@@ -119,12 +137,14 @@ function MixSession({
   tasks,
   showAnswer,
   speakAnswer,
+  screenKeyboard,
   onExit,
   onRestart,
 }: {
   tasks: Task[]
   showAnswer: boolean
   speakAnswer: boolean
+  screenKeyboard: boolean
   onExit: () => void
   onRestart: () => void
 }) {
@@ -177,6 +197,7 @@ function MixSession({
           <WriteTask
             word={task.word}
             speakAnswer={speakAnswer}
+            screenKeyboard={screenKeyboard}
             onAnswered={answered}
             onNext={next}
           />

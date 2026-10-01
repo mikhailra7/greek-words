@@ -22,10 +22,15 @@ type CheckResult = {
 export default function WriteTask({
   word,
   speakAnswer = false,
+  screenKeyboard = false,
   onAnswered,
   onNext,
 }: {
   word: Word
+  /** «Экранная клавиатура»: only the site's Greek keyboard, the device's one never opens
+   * (inputmode=none) — e.g. Samsung Keyboard in Chrome drops the field when the language is
+   * picked by holding the space bar. */
+  screenKeyboard?: boolean
   /** «Воспроизвести ответ»: say the Greek word when the verdict shows the right answer. */
   speakAnswer?: boolean
   onAnswered: (mistake: Mistake | null) => void
@@ -126,6 +131,7 @@ export default function WriteTask({
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
           readOnly={!!result}
+          inputMode={screenKeyboard ? 'none' : undefined}
           lang="el"
           autoCapitalize="off"
           autoCorrect="off"
@@ -194,6 +200,7 @@ export default function WriteTask({
           onInput={(text) => edit(text)}
           onBackspace={() => edit('', true)}
           disabled={checking}
+          always={screenKeyboard}
         />
       )}
     </>

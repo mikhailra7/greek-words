@@ -19,13 +19,14 @@ import {
 } from '../trainers/common.tsx'
 import WriteTask from '../trainers/WriteTask.tsx'
 
-type Settings = { count: number; hideKnown: boolean; speakAnswer: boolean }
+type Settings = { count: number; hideKnown: boolean; speakAnswer: boolean; screenKeyboard: boolean }
 export default function WritePage() {
   const active = useActiveCount()
   const [settings, update] = useTrainerSettings<Settings>('write', {
     count: 20,
     hideKnown: true,
     speakAnswer: false,
+    screenKeyboard: false,
   })
   const [words, setWords] = useState<Word[] | null>(null)
   const [starting, setStarting] = useState(false)
@@ -54,6 +55,7 @@ export default function WritePage() {
         key={sessionKey(words)}
         words={words}
         speakAnswer={settings?.speakAnswer ?? false}
+        screenKeyboard={settings?.screenKeyboard ?? false}
         onExit={() => setWords(null)}
         onRestart={start}
       />
@@ -75,6 +77,16 @@ export default function WritePage() {
             <p className="text-sm text-slate-600 dark:text-slate-400">
               Пишите по-гречески с ударением. У существительных — с артиклем: «το νερό».
             </p>
+            <div>
+              <Toggle
+                label="Экранная клавиатура"
+                checked={settings.screenKeyboard}
+                onChange={(screenKeyboard) => update({ screenKeyboard })}
+              />
+              <p className="mt-1 pl-9 text-sm text-slate-500">
+                Греческая клавиатура сайта вместо клавиатуры телефона — та не открывается.
+              </p>
+            </div>
             <Toggle
               label="Воспроизвести ответ"
               checked={settings.speakAnswer}
@@ -99,11 +111,13 @@ export default function WritePage() {
 function WriteSession({
   words,
   speakAnswer,
+  screenKeyboard,
   onExit,
   onRestart,
 }: {
   words: Word[]
   speakAnswer: boolean
+  screenKeyboard: boolean
   onExit: () => void
   onRestart: () => void
 }) {
@@ -144,6 +158,7 @@ function WriteSession({
         <WriteTask
           word={words[index]}
           speakAnswer={speakAnswer}
+          screenKeyboard={screenKeyboard}
           onAnswered={answered}
           onNext={next}
         />
