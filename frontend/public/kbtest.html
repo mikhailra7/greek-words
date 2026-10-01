@@ -25,7 +25,7 @@
         border: 2px solid var(--line); border-radius: 12px; background: transparent; color: inherit; }
       textarea { resize: none; overflow: hidden; }
       [contenteditable] { min-height: 1.4em; }
-      .log { margin: 8px 0 0; font: 13px/1.35 ui-monospace, monospace; color: var(--muted); white-space: pre-wrap; max-height: 9em; overflow: auto; }
+      .log { margin: 8px 0 0; font: 13px/1.35 ui-monospace, monospace; color: var(--muted); white-space: pre-wrap; max-height: 16em; overflow: auto; }
       .bad { color: #dc2626; } .ok { color: #16a34a; }
     </style>
   </head>
@@ -96,6 +96,12 @@
       <div class="log"></div>
     </section>
 
+    <section>
+      <h2>10. Как в «Напиши» + гасим keydown 229 <span>keyCode 229 без набора текста: preventDefault + stopPropagation</span></h2>
+      <input id="f10" lang="el" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="по-гречески…" />
+      <div class="log"></div>
+    </section>
+
     <script>
       document.getElementById('mode').textContent = VK || 'обычный (resizes-visual)'
       const t0 = performance.now()
@@ -113,7 +119,14 @@
         const log = section.querySelector('.log')
         field.addEventListener('focus', () => { current = log; add(log, 'фокус в поле', 'ok') })
         field.addEventListener('blur', () => add(log, 'поле потеряло фокус', 'bad'))
-        field.addEventListener('input', () => add(log, 'ввод: «' + (field.value ?? field.textContent).slice(-12) + '»'))
+        field.addEventListener('input', (e) => add(log, 'input ' + (e.inputType || '') + ' «' + (field.value ?? field.textContent).slice(-12) + '»'))
+        // What the keyboard (IME) sends: on Android keydown usually carries keyCode 229.
+        const keyInfo = (e) => 'keyCode=' + e.keyCode + ' key=' + JSON.stringify(e.key) + (e.code ? ' code=' + e.code : '') + (e.isComposing ? ' composing' : '') + (e.repeat ? ' repeat' : '')
+        field.addEventListener('keydown', (e) => add(log, 'keydown ' + keyInfo(e)))
+        field.addEventListener('keyup', (e) => add(log, 'keyup ' + keyInfo(e)))
+        field.addEventListener('beforeinput', (e) => add(log, 'beforeinput ' + e.inputType + (e.data != null ? ' data=' + JSON.stringify(e.data) : '')))
+        for (const ev of ['compositionstart', 'compositionupdate', 'compositionend'])
+          field.addEventListener(ev, (e) => add(log, ev + ' data=' + JSON.stringify(e.data)))
       }
       // Fields 7–8: focus that leaves without a tap on the page is put back.
       let lastTap = -1e9
@@ -142,6 +155,16 @@
       }, true)
       document.addEventListener('pointerdown', (e) => {
         if (document.activeElement === f9) add(log9, 'pointerdown: ' + e.pointerType + ' y=' + Math.round(e.clientY) + ' на ' + (e.target.tagName || '?').toLowerCase())
+      }, true)
+      // Field 10: swallow keydown 229 that types nothing (Android IME "Process" key).
+      const f10 = document.getElementById('f10')
+      const log10 = f10.closest('section').querySelector('.log')
+      f10.addEventListener('keydown', (e) => {
+        if (e.keyCode === 229 && !e.isComposing) {
+          e.preventDefault()
+          e.stopPropagation()
+          add(log10, 'keydown 229 погашен', 'ok')
+        }
       }, true)
       window.addEventListener('blur', () => add(current, 'окно браузера потеряло фокус'))
       window.addEventListener('focus', () => add(current, 'окно браузера снова в фокусе'))
