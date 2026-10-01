@@ -154,3 +154,64 @@ test('dialogues: one upload button for both kinds; readable errors; replace and 
   await card.getByRole('button', { name: 'Удалить' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: title })).toHaveCount(0)
 })
+
+test('dialogues: «Пауза между репликами» — one line per →, on from a tapped one', async ({
+  page,
+  request,
+}) => {
+  const d = await (
+    await request.post('/api/dialogues/import', { data: example(`По одной ${Date.now()}`) })
+  ).json()
+  const lineAudio = (i: number) => `/api/dialogue-lines/${d.lines[i].id}/audio`
+  const audio = await recordAudio(page)
+  await page.goto(`/dialogues/${d.id}`)
+
+  const step = page.getByLabel('Пауза между репликами')
+  await step.check()
+  await expect(page.getByRole('button', { name: '▶ Прослушать весь диалог' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Первая реплика →' }).click()
+  await expect.poll(() => audio.at(-1) ?? '').toContain(lineAudio(0))
+  await page.getByRole('button', { name: 'Следующая реплика' }).click()
+  await expect.poll(() => audio.at(-1) ?? '').toContain(lineAudio(1))
+  expect(audio).toHaveLength(2) // nothing plays on its own
+
+  // A tapped line is where → goes on from; after the last one — from the start.
+  await page.getByRole('button', { name: /Σου αρέσει η Ελλάδα/ }).click()
+  await expect.poll(() => audio.at(-1) ?? '').toContain(lineAudio(5))
+  await page.getByRole('button', { name: 'Следующая реплика' }).click()
+  await expect.poll(() => audio.at(-1) ?? '').toContain(lineAudio(6))
+  await page.getByRole('button', { name: '↺ С начала' }).click()
+  await expect.poll(() => audio.at(-1) ?? '').toContain(lineAudio(0))
+  expect(await noSideScroll(page)).toBe(true)
+
+  await step.uncheck() // leave the shared user as it was
+  await expect(page.getByRole('button', { name: '▶ Прослушать весь диалог' })).toBeVisible()
+  await page.waitForTimeout(700)
+})
+
+test('dialogues: a member reads and learns, but adds / replaces / deletes nothing', async ({
+  browser,
+  request,
+}) => {
+  const title = `Для участника ${Date.now()}`
+  await request.post('/api/dialogues/import', { data: example(title) })
+  const invite = await (await request.post('/api/admin/invites', { data: {} })).json()
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+  const reg = await ctx.request.post('/api/auth/register', {
+    data: {
+      username: `dlg_member_${Date.now()}`,
+      password: 'member-pass',
+      invite_code: invite.code,
+    },
+  })
+  expect(reg.ok()).toBeTruthy()
+  const page = await ctx.newPage()
+  await page.goto('/dialogues')
+  const card = page.getByRole('listitem').filter({ hasText: title })
+  await expect(card.getByRole('link', { name: 'Учить' })).toBeVisible()
+  for (const name of ['Заменить из JSON', 'Скачать JSON', 'Удалить'])
+    await expect(card.getByText(name)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Загрузить JSON' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Вставить ответ Claude' })).toHaveCount(0)
+  await ctx.close()
+})

@@ -24,6 +24,8 @@ type Settings = {
   transcription: boolean
   translation: boolean
   oneVoice: boolean
+  /** «Пауза между репликами»: no playing it all in a row — line by line with the → button. */
+  stepByStep: boolean
 }
 const DEFAULTS: Settings = {
   mode: 'read',
@@ -31,6 +33,7 @@ const DEFAULTS: Settings = {
   transcription: true,
   translation: true,
   oneVoice: false,
+  stepByStep: false,
 }
 const MODES: [Mode, string][] = [
   ['read', 'Чтение'],
@@ -233,8 +236,11 @@ function ReadMode({
       items.current[i]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
       const line = lines[i]
       await playUntilEnd(line.audio_url, line.greek, 'el-GR', voiceOf(line.speaker))
-      const until = Date.now() + PAUSE_MS
-      while (run.current === me && (paused.current || Date.now() < until)) await sleep(100)
+      // The gap between lines; «Пауза» stops its clock too.
+      for (let waited = 0; run.current === me && (paused.current || waited < PAUSE_MS);) {
+        await sleep(100)
+        if (!paused.current) waited += 100
+      }
     }
     if (run.current === me) {
       setState('idle')
@@ -242,9 +248,23 @@ function ReadMode({
     }
   }
 
-  const tap = (line: DialogueLine) => {
-    if (state !== 'idle') stop()
+  // One line: played, highlighted, scrolled to. In «Пауза между репликами» the → button
+  // goes on from the last line played (a tapped one counts too).
+  const playLine = (i: number) => {
+    const line = lines[i]
+    setCurrent(i)
+    items.current[i]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     speak(line.audio_url, line.greek, voiceOf(line.speaker))
+  }
+  const tap = (i: number) => {
+    if (state !== 'idle') stop()
+    if (settings.stepByStep) playLine(i)
+    else speak(lines[i].audio_url, lines[i].greek, voiceOf(lines[i].speaker))
+  }
+  const atEnd = current === lines.length - 1
+  const stepNext = () => {
+    unlockAudio()
+    playLine(current === null || atEnd ? 0 : current + 1)
   }
 
   const show = {
@@ -261,6 +281,20 @@ function ReadMode({
 
   return (
     <div className="space-y-4">
+      <div>
+        <Toggle
+          label="Пауза между репликами"
+          checked={settings.stepByStep}
+          onChange={(stepByStep) => {
+            stop()
+            update({ stepByStep })
+          }}
+        />
+        <p className="mt-1 pl-9 text-sm text-slate-500">
+          Реплики по одной: следующая — по кнопке → внизу, а не весь диалог подряд.
+        </p>
+      </div>
+
       <div className="flex flex-wrap gap-2" role="group" aria-label="Что показывать">
         {chips.map(([key, label]) => (
           <button
@@ -294,7 +328,7 @@ function ReadMode({
             speakers={speakers}
             show={show}
             active={current === i}
-            onTap={() => tap(line)}
+            onTap={() => tap(i)}
             bubbleRef={(el) => {
               items.current[i] = el
             }}
@@ -303,7 +337,19 @@ function ReadMode({
       </ul>
 
       <div className="sticky bottom-3 flex justify-center gap-2">
-        {state === 'idle' ? (
+        {settings.stepByStep ? (
+          <Button onClick={stepNext} className="px-6 shadow-lg">
+            {current === null ? (
+              'Первая реплика →'
+            ) : atEnd ? (
+              '↺ С начала'
+            ) : (
+              <span aria-label="Следующая реплика" className="text-xl leading-none">
+                <span aria-hidden="true">→</span>
+              </span>
+            )}
+          </Button>
+        ) : state === 'idle' ? (
           <Button onClick={playAll} className="shadow-lg">
             ▶ Прослушать весь диалог
           </Button>

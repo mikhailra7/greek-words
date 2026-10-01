@@ -25,6 +25,7 @@ def offline_media(tmp_path, monkeypatch):
     monkeypatch.setattr(tts, "_synthesize", fake_synthesize)
     monkeypatch.setattr(tts, "warm_up", lambda *a, **k: None)
     monkeypatch.setattr(tts, "warm_up_dialogue", lambda *a, **k: None)
+    monkeypatch.setattr(tts, "wait_for_background", lambda: None)
 
 
 @pytest.fixture

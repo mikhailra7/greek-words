@@ -339,6 +339,13 @@ def dialogue_line_files(line_ids: list[int]) -> list[str]:
     ]
 
 
+def wait_for_background() -> None:
+    """For one-off commands (CLI): finish the queued audio before the process exits —
+    otherwise the worker threads die with it («cannot schedule new futures after shutdown»)."""
+    _bulk.shutdown(wait=True)
+    _session.shutdown(wait=True)
+
+
 def warm_up_dialogue(line_ids: list[int]) -> None:
     """Each line in its role's voice at the default speed, in the background."""
     if line_ids and settings.tts_enabled:

@@ -9,7 +9,7 @@
     {"speaker": 0, "greek": "Με λένε Μαρία. Χαίρω πολύ!", "transcription": "Me léne María. Héro polí!", "translation_ru": "Меня зовут Мария. Очень приятно!", "note": null},
     {"speaker": 1, "greek": "Κι εγώ. Από πού είσαι;", "transcription": "Ki egó. Apó pu íse?", "translation_ru": "Мне тоже. Откуда ты?", "note": null},
     {"speaker": 0, "greek": "Είμαι από τη Ρωσία.", "transcription": "Íme apó ti Rosía.", "translation_ru": "Я из России.", "note": null},
-    {"speaker": 1, "greek": "Σου αρέσει η Ελλάδα;", "transcription": "Su arési i Elláda?", "translation_ru": "Тебе нравится Греция?", "note": null},
+    {"speaker": 1, "greek": "Σου αρέσει η Ελλάδα;", "transcription": "Su arési i Eláda?", "translation_ru": "Тебе нравится Греция?", "note": null},
     {"speaker": 0, "greek": "Ναι, πολύ!", "transcription": "Ne, polí!", "translation_ru": "Да, очень!", "note": null}
   ]
 }

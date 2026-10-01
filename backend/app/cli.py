@@ -60,6 +60,9 @@ def seed_dialogues() -> int:
                 continue
             dialogues.create(db, data, created_by_id=None)
             print(f"создан диалог: {data.title} ({len(data.lines)} реплик)")
+    from app.services import tts
+
+    tts.wait_for_background()  # the roles' audio is made in the background
     return 0
 
 
