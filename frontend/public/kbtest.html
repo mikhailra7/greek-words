@@ -90,6 +90,12 @@
       <div class="log"></div>
     </section>
 
+    <section>
+      <h2>9. Как в «Напиши» + касания мимо поля не забирают фокус <span>как в подсказках поиска Google</span></h2>
+      <input id="f9" lang="el" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="по-гречески…" />
+      <div class="log"></div>
+    </section>
+
     <script>
       document.getElementById('mode').textContent = VK || 'обычный (resizes-visual)'
       const t0 = performance.now()
@@ -124,6 +130,19 @@
           }, delay)
         })
       }
+      // Field 9: while it has focus, a tap anywhere else on the page doesn't move the focus
+      // (mousedown's default action is cancelled; clicks still work).
+      const f9 = document.getElementById('f9')
+      const log9 = f9.closest('section').querySelector('.log')
+      document.addEventListener('mousedown', (e) => {
+        if (document.activeElement === f9 && e.target !== f9) {
+          e.preventDefault()
+          add(log9, 'касание мимо поля — фокус оставлен')
+        }
+      }, true)
+      document.addEventListener('pointerdown', (e) => {
+        if (document.activeElement === f9) add(log9, 'pointerdown: ' + e.pointerType + ' y=' + Math.round(e.clientY) + ' на ' + (e.target.tagName || '?').toLowerCase())
+      }, true)
       window.addEventListener('blur', () => add(current, 'окно браузера потеряло фокус'))
       window.addEventListener('focus', () => add(current, 'окно браузера снова в фокусе'))
       document.addEventListener('visibilitychange', () => add(current, 'страница ' + (document.hidden ? 'скрыта' : 'видна')))
