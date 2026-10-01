@@ -25,6 +25,7 @@ type Settings = {
   showAnswer: boolean
   hideKnown: boolean
   hard: boolean
+  speakAnswer: boolean
 }
 type Question = { word: Word; options: Option[] }
 
@@ -36,6 +37,7 @@ export default function TranslatePage() {
     direction: 'ru_gr',
     showAnswer: true,
     hard: false,
+    speakAnswer: false,
   })
   const [questions, setQuestions] = useState<Question[] | null>(null)
   const [starting, setStarting] = useState(false)
@@ -71,6 +73,7 @@ export default function TranslatePage() {
         questions={questions}
         direction={settings.direction}
         showAnswer={settings.showAnswer}
+        speakAnswer={settings.speakAnswer}
         onExit={() => setQuestions(null)}
         onRestart={start}
       />
@@ -130,6 +133,14 @@ export default function TranslatePage() {
               checked={settings.showAnswer}
               onChange={(showAnswer) => update({ showAnswer })}
             />
+            {/* Plays when the right answer is shown — without «показывать сразу» it never is. */}
+            {settings.showAnswer && (
+              <Toggle
+                label="Воспроизвести ответ"
+                checked={settings.speakAnswer}
+                onChange={(speakAnswer) => update({ speakAnswer })}
+              />
+            )}
             <HideKnownToggle
               checked={settings.hideKnown}
               known={active?.known ?? 0}
@@ -150,12 +161,14 @@ function TranslateSession({
   questions,
   direction,
   showAnswer,
+  speakAnswer,
   onExit,
   onRestart,
 }: {
   questions: Question[]
   direction: Direction
   showAnswer: boolean
+  speakAnswer: boolean
   onExit: () => void
   onRestart: () => void
 }) {
@@ -200,6 +213,7 @@ function TranslateSession({
           options={q.options}
           direction={direction}
           showAnswer={showAnswer}
+          speakAnswer={speakAnswer}
           onAnswered={answered}
           onNext={next}
         />

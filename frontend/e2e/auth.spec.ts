@@ -23,7 +23,10 @@ test('admin invites a member; member signs up with the code and has no admin too
 
   await m.getByLabel('Код приглашения').fill(code.toLowerCase())
   await m.getByRole('button', { name: 'Зарегистрироваться' }).click()
-  await expect(m).toHaveURL(/\/dictionaries$/)
+  // The start page is the menu of modes.
+  await expect(m).toHaveURL(/\/$/)
+  await expect(m.getByRole('heading', { name: 'Что делаем?' })).toBeVisible()
+  await m.goto('/dictionaries')
   await expect(m.getByRole('button', { name: 'Импорт из учебника' })).toHaveCount(0)
 
   await m.goto('/profile')
@@ -50,6 +53,6 @@ test('wrong password is rejected, right one signs in', async ({ browser }) => {
   await expect(page.getByRole('alert')).toContainText('Неверное имя или пароль')
   await password.fill(ADMIN.password)
   await page.getByRole('button', { name: 'Войти' }).click()
-  await expect(page).toHaveURL(/\/dictionaries$/)
+  await expect(page).toHaveURL(/\/$/) // the start page (menu of modes)
   await ctx.close()
 })

@@ -341,3 +341,43 @@ test('study: «Показывать только слово» — word first, ta
   await wordOnly.uncheck()
   await page.waitForTimeout(700)
 })
+
+test('«Воспроизвести ответ»: the Greek word plays when the answer is shown', async ({ page }) => {
+  const audio: string[] = []
+  await page.route(/\/api\/words\/\d+\/audio(\?|$)/, (route) => {
+    if (route.request().resourceType() === 'media') audio.push(route.request().url())
+    return route.fulfill({ status: 200, contentType: 'audio/mpeg', body: '' })
+  })
+
+  // «Переведи»: only offered while the right answer is shown.
+  await page.goto('/translate')
+  await page.getByRole('radio', { name: /С русского/ }).click()
+  await page.getByLabel('Hard-режим').uncheck()
+  await page.getByLabel('Показывать правильный ответ сразу').uncheck()
+  await expect(page.getByLabel('Воспроизвести ответ')).toHaveCount(0)
+  await page.getByLabel('Показывать правильный ответ сразу').check()
+  await page.getByLabel('Воспроизвести ответ').check()
+  await setSlider(page, 1)
+  await page.getByRole('button', { name: 'Начать' }).click()
+  await page.waitForTimeout(800)
+  expect(audio).toHaveLength(0) // nothing before the answer
+  await page.locator('ul li button').first().click()
+  await expect.poll(() => audio.length).toBe(1)
+  await page.keyboard.press('Enter')
+  await page.getByRole('button', { name: 'В меню' }).click()
+  await page.getByLabel('Воспроизвести ответ').uncheck() // leave the shared user as it was
+
+  // «Напиши»: after the check, right or wrong.
+  await page.goto('/write')
+  await page.getByLabel('Воспроизвести ответ').check()
+  await setSlider(page, 1)
+  await page.getByRole('button', { name: 'Начать' }).click()
+  const before = audio.length
+  await page.getByRole('button', { name: 'Не знаю' }).click()
+  await expect(page.getByText('Ваш ответ')).toBeVisible()
+  await expect.poll(() => audio.length).toBe(before + 1)
+  await page.getByLabel('Ответ по-гречески').press('Enter')
+  await page.getByRole('button', { name: 'В меню' }).click()
+  await page.getByLabel('Воспроизвести ответ').uncheck()
+  await page.waitForTimeout(700) // saved with a short debounce
+})

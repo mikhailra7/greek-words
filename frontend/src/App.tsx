@@ -1,10 +1,11 @@
-import { Navigate, Route, Routes } from 'react-router'
+import { Route, Routes } from 'react-router'
 import { GuestOnly, RequireAdmin, RequireAuth } from './auth/guards.tsx'
 import Layout from './components/Layout.tsx'
 import AdminPage from './pages/AdminPage.tsx'
 import CategoryPage from './pages/CategoryPage.tsx'
 import DictionariesPage from './pages/DictionariesPage.tsx'
 import DictionaryPage from './pages/DictionaryPage.tsx'
+import HomePage from './pages/HomePage.tsx'
 import ImportJobPage from './pages/ImportJobPage.tsx'
 import ImportListPage from './pages/ImportListPage.tsx'
 import ListenPage from './pages/ListenPage.tsx'
@@ -26,7 +27,7 @@ export default function App() {
       </Route>
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/dictionaries" replace />} />
+          <Route index element={<HomePage />} />
           <Route path="dictionaries" element={<DictionariesPage />} />
           <Route path="dictionaries/:id" element={<DictionaryPage />} />
           <Route path="categories/:id" element={<CategoryPage />} />

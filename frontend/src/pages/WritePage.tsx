@@ -10,6 +10,7 @@ import {
   playableCount,
   ResultScreen,
   SessionShell,
+  Toggle,
   TrainerSetup,
   useActiveCount,
   sessionKey,
@@ -18,12 +19,13 @@ import {
 } from '../trainers/common.tsx'
 import WriteTask from '../trainers/WriteTask.tsx'
 
-type Settings = { count: number; hideKnown: boolean }
+type Settings = { count: number; hideKnown: boolean; speakAnswer: boolean }
 export default function WritePage() {
   const active = useActiveCount()
   const [settings, update] = useTrainerSettings<Settings>('write', {
     count: 20,
     hideKnown: true,
+    speakAnswer: false,
   })
   const [words, setWords] = useState<Word[] | null>(null)
   const [starting, setStarting] = useState(false)
@@ -51,6 +53,7 @@ export default function WritePage() {
       <WriteSession
         key={sessionKey(words)}
         words={words}
+        speakAnswer={settings?.speakAnswer ?? false}
         onExit={() => setWords(null)}
         onRestart={start}
       />
@@ -72,6 +75,11 @@ export default function WritePage() {
             <p className="text-sm text-slate-600 dark:text-slate-400">
               Пишите по-гречески с ударением. У существительных — с артиклем: «το νερό».
             </p>
+            <Toggle
+              label="Воспроизвести ответ"
+              checked={settings.speakAnswer}
+              onChange={(speakAnswer) => update({ speakAnswer })}
+            />
             <HideKnownToggle
               checked={settings.hideKnown}
               known={active?.known ?? 0}
@@ -90,10 +98,12 @@ export default function WritePage() {
 
 function WriteSession({
   words,
+  speakAnswer,
   onExit,
   onRestart,
 }: {
   words: Word[]
+  speakAnswer: boolean
   onExit: () => void
   onRestart: () => void
 }) {
@@ -131,7 +141,12 @@ function WriteSession({
   return (
     <SessionShell progress={`${index + 1} / ${words.length}`} onExit={exit}>
       <div className="flex flex-1 flex-col gap-4 pt-2">
-        <WriteTask word={words[index]} onAnswered={answered} onNext={next} />
+        <WriteTask
+          word={words[index]}
+          speakAnswer={speakAnswer}
+          onAnswered={answered}
+          onNext={next}
+        />
       </div>
     </SessionShell>
   )

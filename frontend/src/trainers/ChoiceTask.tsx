@@ -3,6 +3,7 @@ import { api } from '../api/client.ts'
 import type { Word } from '../api/types.ts'
 import SpeakButton from '../components/SpeakButton.tsx'
 import { Button } from '../components/ui.tsx'
+import { speak } from '../lib/speaker.ts'
 import { WordPicture, type Mistake } from './common.tsx'
 
 export type Direction = 'ru_gr' | 'gr_ru'
@@ -15,6 +16,7 @@ export default function ChoiceTask({
   options,
   direction,
   showAnswer,
+  speakAnswer = false,
   onAnswered,
   onNext,
 }: {
@@ -22,6 +24,8 @@ export default function ChoiceTask({
   options: Option[]
   direction: Direction
   showAnswer: boolean
+  /** «Воспроизвести ответ»: say the Greek word when the right answer is shown. */
+  speakAnswer?: boolean
   onAnswered: (mistake: Mistake | null) => void
   onNext: () => void
 }) {
@@ -60,10 +64,13 @@ export default function ChoiceTask({
           given_answer: opt.text,
         }),
       }).catch(() => {})
-      if (showAnswer) setChosen(opt)
-      else next()
+      if (showAnswer) {
+        setChosen(opt)
+        // Inside the tap, so iOS lets it play.
+        if (speakAnswer) speak(word.audio_url, word.full_greek)
+      } else next()
     },
-    [chosen, word, options, direction, showAnswer, onAnswered, next],
+    [chosen, word, options, direction, showAnswer, speakAnswer, onAnswered, next],
   )
 
   // Laptop: 1–4 choose, Enter — «Далее».

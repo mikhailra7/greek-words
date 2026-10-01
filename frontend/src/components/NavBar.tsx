@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type MouseEvent } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router'
 import {
   IconBook,
   IconCards,
@@ -40,6 +40,15 @@ function DesktopNav() {
   return (
     <nav className="sticky top-0 z-10 hidden border-b border-slate-200 bg-white/95 backdrop-blur md:block dark:border-slate-800 dark:bg-slate-900/95">
       <ul className="mx-auto flex max-w-3xl justify-center gap-1">
+        <li>
+          <Link
+            to="/"
+            className="flex items-center px-3 py-3 text-sm font-semibold"
+            title="Главная"
+          >
+            Λέξεις
+          </Link>
+        </li>
         {items.map(({ to, label, short, Icon }) => (
           <li key={to}>
             <NavLink
@@ -106,7 +115,9 @@ function MobileNav() {
         >
           <IconMenu className="size-7" />
         </button>
-        <span className="font-semibold">Λέξεις</span>
+        <Link to="/" className="font-semibold">
+          Λέξεις
+        </Link>
         {current && (
           <span className="truncate text-slate-500">· {current.short ?? current.label}</span>
         )}

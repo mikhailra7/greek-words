@@ -20,7 +20,7 @@ import {
 } from '../trainers/common.tsx'
 import WriteTask from '../trainers/WriteTask.tsx'
 
-type Settings = { count: number; showAnswer: boolean; hideKnown: boolean }
+type Settings = { count: number; showAnswer: boolean; hideKnown: boolean; speakAnswer: boolean }
 type TaskType = 'ru_gr' | 'gr_ru' | 'write'
 type Task = { type: TaskType; word: Word; options: Option[] }
 
@@ -37,6 +37,7 @@ export default function MixPage() {
     count: 20,
     showAnswer: true,
     hideKnown: true,
+    speakAnswer: false,
   })
   const [tasks, setTasks] = useState<Task[] | null>(null)
   const [starting, setStarting] = useState(false)
@@ -66,6 +67,7 @@ export default function MixPage() {
         key={sessionKey(tasks)}
         tasks={tasks}
         showAnswer={settings.showAnswer}
+        speakAnswer={settings.speakAnswer}
         onExit={() => setTasks(null)}
         onRestart={start}
       />
@@ -92,6 +94,11 @@ export default function MixPage() {
               checked={settings.showAnswer}
               onChange={(showAnswer) => update({ showAnswer })}
             />
+            <Toggle
+              label="Воспроизвести ответ"
+              checked={settings.speakAnswer}
+              onChange={(speakAnswer) => update({ speakAnswer })}
+            />
             <HideKnownToggle
               checked={settings.hideKnown}
               known={active?.known ?? 0}
@@ -111,11 +118,13 @@ export default function MixPage() {
 function MixSession({
   tasks,
   showAnswer,
+  speakAnswer,
   onExit,
   onRestart,
 }: {
   tasks: Task[]
   showAnswer: boolean
+  speakAnswer: boolean
   onExit: () => void
   onRestart: () => void
 }) {
@@ -165,7 +174,12 @@ function MixSession({
         {/* WriteTask keeps its slot between consecutive «Напиши» tasks: the phone keyboard
             stays open. */}
         {task.type === 'write' ? (
-          <WriteTask word={task.word} onAnswered={answered} onNext={next} />
+          <WriteTask
+            word={task.word}
+            speakAnswer={speakAnswer}
+            onAnswered={answered}
+            onNext={next}
+          />
         ) : (
           <ChoiceTask
             key={index}
@@ -173,6 +187,7 @@ function MixSession({
             options={task.options}
             direction={task.type}
             showAnswer={showAnswer}
+            speakAnswer={speakAnswer}
             onAnswered={answered}
             onNext={next}
           />

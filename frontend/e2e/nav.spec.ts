@@ -40,3 +40,26 @@ test('laptop: all sections in one row on top, no ☰', async ({ page }) => {
     await expect(page.getByRole('navigation').getByRole('link', { name })).toBeVisible()
   }
 })
+
+test('start page: a menu of modes, one tap to each; the logo leads back to it', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Что делаем?' })).toBeVisible()
+  await expect(page.getByText(/В тренировке|Отметьте словари/)).toBeVisible()
+  const tiles = page.getByRole('main').getByRole('link')
+  for (const name of [
+    'Изучение слов',
+    'Переведи слово',
+    'Напиши',
+    'Микс заданий',
+    'Аудио повторение',
+    'Словари',
+  ]) {
+    await expect(tiles.filter({ has: page.getByText(name, { exact: true }) })).toBeVisible()
+  }
+  await tiles.filter({ has: page.getByText('Переведи слово', { exact: true }) }).click()
+  await expect(page).toHaveURL(/\/translate$/)
+  await page.getByRole('link', { name: 'Λέξεις' }).filter({ visible: true }).click()
+  await expect(page).toHaveURL(/\/$/)
+})

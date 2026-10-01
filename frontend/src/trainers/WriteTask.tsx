@@ -3,6 +3,7 @@ import { api } from '../api/client.ts'
 import type { Word } from '../api/types.ts'
 import SpeakButton from '../components/SpeakButton.tsx'
 import { Button, ErrorText } from '../components/ui.tsx'
+import { speak } from '../lib/speaker.ts'
 import { WordPicture, type Mistake } from './common.tsx'
 import GreekKeyboard from './GreekKeyboard.tsx'
 
@@ -20,10 +21,13 @@ type CheckResult = {
 // consecutive write questions, so a phone keyboard doesn't close and reopen.
 export default function WriteTask({
   word,
+  speakAnswer = false,
   onAnswered,
   onNext,
 }: {
   word: Word
+  /** «Воспроизвести ответ»: say the Greek word when the verdict shows the right answer. */
+  speakAnswer?: boolean
   onAnswered: (mistake: Mistake | null) => void
   onNext: () => void
 }) {
@@ -86,6 +90,8 @@ export default function WriteTask({
         body: JSON.stringify({ word_id: word.id, answer: given }),
       })
       setResult(r)
+      // After the server's answer, outside the tap: fine, «Начать» has unlocked the sound.
+      if (speakAnswer) speak(word.audio_url, word.full_greek)
       onAnswered(
         r.correct
           ? null
