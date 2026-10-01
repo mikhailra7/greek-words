@@ -78,6 +78,18 @@
       <div class="log"></div>
     </section>
 
+    <section>
+      <h2>7. Как в «Напиши» + возврат фокуса сразу <span>если фокус ушёл без нажатия</span></h2>
+      <input data-refocus="0" lang="el" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="по-гречески…" />
+      <div class="log"></div>
+    </section>
+
+    <section>
+      <h2>8. Как в «Напиши» + возврат фокуса через 0,4 с <span>если фокус ушёл без нажатия</span></h2>
+      <input data-refocus="400" lang="el" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="по-гречески…" />
+      <div class="log"></div>
+    </section>
+
     <script>
       document.getElementById('mode').textContent = VK || 'обычный (resizes-visual)'
       const t0 = performance.now()
@@ -96,6 +108,21 @@
         field.addEventListener('focus', () => { current = log; add(log, 'фокус в поле', 'ok') })
         field.addEventListener('blur', () => add(log, 'поле потеряло фокус', 'bad'))
         field.addEventListener('input', () => add(log, 'ввод: «' + (field.value ?? field.textContent).slice(-12) + '»'))
+      }
+      // Fields 7–8: focus that leaves without a tap on the page is put back.
+      let lastTap = -1e9
+      document.addEventListener('pointerdown', () => (lastTap = performance.now()), true)
+      for (const field of document.querySelectorAll('[data-refocus]')) {
+        const log = field.closest('section').querySelector('.log')
+        const delay = Number(field.dataset.refocus)
+        field.addEventListener('blur', () => {
+          if (performance.now() - lastTap < 600) return add(log, 'нажатие на странице — фокус не трогаю')
+          add(log, 'фокус ушёл сам — возвращаю' + (delay ? ' через ' + delay / 1000 + ' с' : ''))
+          setTimeout(() => {
+            field.focus()
+            add(log, document.activeElement === field ? 'фокус возвращён' : 'вернуть фокус не вышло', document.activeElement === field ? 'ok' : 'bad')
+          }, delay)
+        })
       }
       window.addEventListener('blur', () => add(current, 'окно браузера потеряло фокус'))
       window.addEventListener('focus', () => add(current, 'окно браузера снова в фокусе'))
