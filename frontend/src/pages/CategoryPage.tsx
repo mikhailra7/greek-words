@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { api } from '../api/client.ts'
 import { byAuthor, pluralWords, type CategoryDetail } from '../api/types.ts'
+import AnswerStats from '../components/AnswerStats.tsx'
 import { KnownCheckbox, ResetKnownButton } from '../components/KnownCheckbox.tsx'
 import Sheet from '../components/Sheet.tsx'
 import SpeakButton from '../components/SpeakButton.tsx'
@@ -140,6 +141,7 @@ export default function CategoryPage() {
                   </span>
                 </span>
               </Link>
+              <AnswerStats answers={w.answers} />
               <SpeakButton url={w.audio_url} text={w.full_greek} />
             </li>
           ))}

@@ -9,6 +9,7 @@ import {
   type Word,
   type WordInput,
 } from '../api/types.ts'
+import AnswerStats from '../components/AnswerStats.tsx'
 import CategorizeSheet from '../components/CategorizeSheet.tsx'
 import { KnownCheckbox, ResetKnownButton } from '../components/KnownCheckbox.tsx'
 import Sheet from '../components/Sheet.tsx'
@@ -318,6 +319,7 @@ function WordRow({
       ) : (
         <div className={className}>{content}</div>
       )}
+      <AnswerStats answers={word.answers} />
       <SpeakButton url={word.audio_url} text={word.full_greek} />
     </div>
   )

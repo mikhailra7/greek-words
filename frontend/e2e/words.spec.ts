@@ -59,3 +59,33 @@ test('word order: ↑ ↓ and dragging by ⋮⋮, saved at once', async ({ page,
   await page.reload()
   await expect(page.locator('li [lang=el].text-lg').first()).toHaveText('τέσσερα')
 })
+
+test('«5/7» next to words: the last answers, on the dictionary and category pages', async ({
+  page,
+  request,
+}) => {
+  const dict = await seedDictionary(request, `Статистика ${Date.now()}`, [
+    { article: 'το', greek: 'νερό', translations_ru: ['вода'] },
+    { article: 'το', greek: 'ψωμί', translations_ru: ['хлеб'] },
+  ])
+  const words = (await (await request.get(`/api/dictionaries/${dict}`)).json()).words
+  const [water, bread] = words.map((w: { id: number }) => w.id)
+  for (const ok of [true, true, false]) {
+    await request.post('/api/training/answers', {
+      data: { word_id: water, mode: 'translate', is_correct: ok, given_answer: 'x' },
+    })
+  }
+  const cat = await (
+    await request.post('/api/categories', { data: { name: `Стат ${Date.now()}` } })
+  ).json()
+  await request.patch(`/api/words/${water}/category`, { data: { category_id: cat.id } })
+
+  await page.goto(`/dictionaries/${dict}`)
+  const stats = page.getByLabel('Последние ответы: 2 из 3')
+  await expect(stats).toHaveText('2/3')
+  await expect(stats).toHaveClass(/bg-amber-100/) // 67%: between 50% and 80%
+  await expect(page.getByLabel(/Последние ответы/)).toHaveCount(1) // ψωμί wasn't met yet
+  expect(bread).toBeTruthy()
+  await page.goto(`/categories/${cat.id}`)
+  await expect(page.getByLabel('Последние ответы: 2 из 3')).toHaveText('2/3')
+})

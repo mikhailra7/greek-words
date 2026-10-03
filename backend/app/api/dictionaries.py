@@ -11,6 +11,7 @@ from app.models import Category, Dictionary, User, UserActiveCategory, UserActiv
 from app.schemas.dictionary import (
     ActiveIn,
     ActiveSummary,
+    AnswerStats,
     DictionaryDetailOut,
     DictionaryFile,
     DictionaryIn,
@@ -183,8 +184,14 @@ def get_dictionary(dictionary_id: int, user: CurrentUser, db: DbSession) -> Dict
     d = get_visible(db, user, dictionary_id)
     base = _dictionary_out(d, user, len(d.words), d.id in _active_ids(db, user))
     from app.services.selection import with_known
+    from app.services.stats import last_answers
 
-    return DictionaryDetailOut(**base.model_dump(), words=with_known(db, user, d.words, WordOut))
+    words = with_known(db, user, d.words, WordOut)
+    stats = last_answers(db, user, [w.id for w in words])
+    for w in words:
+        if w.id in stats:
+            w.answers = AnswerStats(right=stats[w.id][0], total=stats[w.id][1])
+    return DictionaryDetailOut(**base.model_dump(), words=words)
 
 
 @router.patch("/dictionaries/{dictionary_id}", response_model=DictionaryOut)

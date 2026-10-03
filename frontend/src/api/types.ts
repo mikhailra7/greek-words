@@ -18,6 +18,8 @@ export type Word = {
   audio_ru_url: string
   position: number
   known: boolean // per user: «Я знаю это слово»
+  /** Per user, on the dictionary/category pages: the last 10 answers to the word. */
+  answers?: { right: number; total: number } | null
 }
 
 export type WordInput = {

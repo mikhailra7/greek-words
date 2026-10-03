@@ -13,8 +13,9 @@ from app.schemas.category import (
     CategoryPatch,
     CategoryWordOut,
 )
-from app.schemas.dictionary import ActiveIn, ActiveSummary, WordOut
+from app.schemas.dictionary import ActiveIn, ActiveSummary, AnswerStats, WordOut
 from app.services.selection import known_ids
+from app.services.stats import last_answers
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -106,11 +107,15 @@ def get_category(category_id: int, user: CurrentUser, db: DbSession) -> Category
         .order_by(Dictionary.created_at, Word.position)
     ).all()
     known = known_ids(db, user, [w.id for w, _ in rows])
+    stats = last_answers(db, user, [w.id for w, _ in rows])
     words = [
         CategoryWordOut(
-            **WordOut.model_validate(w).model_dump(exclude={"known"}),
+            **WordOut.model_validate(w).model_dump(exclude={"known", "answers"}),
             dictionary_title=title,
             known=w.id in known,
+            answers=AnswerStats(right=stats[w.id][0], total=stats[w.id][1])
+            if w.id in stats
+            else None,
         )
         for w, title in rows
     ]

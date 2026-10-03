@@ -60,6 +60,11 @@ class WordCategoryIn(BaseModel):
     category_id: int | None
 
 
+class AnswerStats(BaseModel):
+    right: int
+    total: int  # of the last 10 answers (fewer if the word was met fewer times)
+
+
 class WordOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -82,6 +87,7 @@ class WordOut(BaseModel):
     audio_ru_url: str | None = None
     position: int
     known: bool = False  # per user: «Я знаю это слово»
+    answers: AnswerStats | None = None  # per user, dictionary/category pages: last 10 answers
 
 
 class DictionaryIn(BaseModel):
