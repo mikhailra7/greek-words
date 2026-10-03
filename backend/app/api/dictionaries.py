@@ -121,6 +121,7 @@ def _dictionary_out(d: Dictionary, user: User, word_count: int, active: bool) ->
         word_count=word_count,
         is_active=active,
         can_edit=can_edit_dictionary(user, d),
+        author=d.author.username if d.author else None,
     )
 
 

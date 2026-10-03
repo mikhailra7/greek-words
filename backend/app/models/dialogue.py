@@ -1,10 +1,14 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.timeutil import utcnow
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Dialogue(Base):
@@ -19,6 +23,8 @@ class Dialogue(Base):
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
+    # Who made it («Автор: …» on the site); kept NULL if that user is deleted.
+    author: Mapped["User | None"] = relationship(foreign_keys=[created_by_id], lazy="joined")
     lines: Mapped[list["DialogueLine"]] = relationship(
         back_populates="dialogue",
         cascade="all, delete-orphan",

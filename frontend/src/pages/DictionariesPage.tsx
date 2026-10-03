@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { api } from '../api/client.ts'
 import {
   activeSummaryText,
+  byAuthor,
   pluralWords,
   type ActiveSummary,
   type Dictionary,
@@ -201,6 +202,7 @@ export default function DictionariesPage() {
                         <span className="block truncate font-medium">{d.title}</span>
                         <span className="block text-sm text-slate-500">
                           {d.word_count} {pluralWords(d.word_count)}
+                          {byAuthor(d.author)}
                           {!d.is_published && ' · скрыт от группы'}
                         </span>
                       </span>

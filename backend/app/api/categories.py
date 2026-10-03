@@ -58,6 +58,7 @@ def _out(c: Category, user: User, count: int, active: bool) -> CategoryOut:
         word_count=count,
         is_active=active,
         can_edit=user.is_admin,
+        author=c.author.username if c.author else None,
     )
 
 
@@ -89,7 +90,7 @@ def create_category(body: CategoryIn, user: CurrentUser, db: DbSession) -> Categ
     _require_admin(user)
     _check_unique_name(db, body.name)
     last = db.scalar(select(func.max(Category.position))) or 0
-    c = Category(name=body.name, emoji=body.emoji, position=last + 1)
+    c = Category(name=body.name, emoji=body.emoji, position=last + 1, created_by_id=user.id)
     db.add(c)
     _commit_unique(db)
     return _out(c, user, 0, False)

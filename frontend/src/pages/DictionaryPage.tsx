@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { api } from '../api/client.ts'
 import {
+  byAuthor,
   pluralWords,
   type Category,
   type DictionaryDetail,
@@ -107,6 +108,7 @@ export default function DictionaryPage() {
         )}
         <p className="mt-1 text-sm text-slate-500">
           {dict.word_count} {pluralWords(dict.word_count)}
+          {byAuthor(dict.author)}
         </p>
       </div>
 

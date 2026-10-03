@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { api } from '../api/client.ts'
-import { pluralWords, type CategoryDetail } from '../api/types.ts'
+import { byAuthor, pluralWords, type CategoryDetail } from '../api/types.ts'
 import { KnownCheckbox, ResetKnownButton } from '../components/KnownCheckbox.tsx'
 import Sheet from '../components/Sheet.tsx'
 import SpeakButton from '../components/SpeakButton.tsx'
@@ -58,6 +58,7 @@ export default function CategoryPage() {
         <h1 className="text-2xl font-semibold">{categoryLabel(cat)}</h1>
         <p className="mt-1 text-sm text-slate-500">
           {cat.word_count} {pluralWords(cat.word_count)} из всех словарей
+          {byAuthor(cat.author)}
         </p>
       </div>
 

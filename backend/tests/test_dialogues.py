@@ -64,6 +64,7 @@ def test_import_list_and_read(admin_client, member):
             "speakers": ["Μαρία", "Νίκος"],
             "line_count": 2,
             "can_edit": False,
+            "author": "admin",
         }
     ]
     assert (

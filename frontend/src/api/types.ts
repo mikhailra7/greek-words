@@ -42,6 +42,7 @@ export type Dictionary = {
   word_count: number
   is_active: boolean
   can_edit: boolean
+  author: string | null // who made it
 }
 
 export type DictionaryDetail = Dictionary & { words: Word[] }
@@ -62,6 +63,7 @@ export type Category = {
   word_count: number
   is_active: boolean
   can_edit: boolean
+  author: string | null // who made it
 }
 
 export type CategoryDetail = Category & { words: (Word & { dictionary_title: string })[] }
@@ -99,6 +101,9 @@ export function pluralWords(n: number): string {
   return 'слов'
 }
 
+/** « · автор: misha» after a count; nothing when the author is unknown. */
+export const byAuthor = (author: string | null | undefined) => (author ? ` · автор: ${author}` : '')
+
 export function pluralLines(n: number): string {
   const mod10 = n % 10
   const mod100 = n % 100
@@ -124,6 +129,7 @@ export type Dialogue = {
   speakers: string[]
   line_count: number
   can_edit: boolean
+  author: string | null // who made it
 }
 
 export type DialogueDetail = Dialogue & { lines: DialogueLine[] }

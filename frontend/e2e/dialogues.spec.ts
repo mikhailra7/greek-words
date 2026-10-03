@@ -34,7 +34,7 @@ test('dialogues: list → «Чтение»: chat, what to show, tap to hear, the
 
   await page.goto('/dialogues')
   const card = page.getByRole('listitem').filter({ hasText: title })
-  await expect(card).toContainText('Μαρία · Νίκος · 7 реплик')
+  await expect(card).toContainText('Μαρία · Νίκος · 7 реплик · автор: e2e_admin')
   await card.getByRole('link', { name: 'Учить' }).click()
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Чтение' })).toHaveAttribute('aria-selected', 'true')

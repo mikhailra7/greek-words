@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { api } from '../api/client.ts'
-import { type DialogueDetail, type DialogueLine } from '../api/types.ts'
+import { byAuthor, type DialogueDetail, type DialogueLine } from '../api/types.ts'
 import { Button, ErrorText, Spinner } from '../components/ui.tsx'
 import {
   pausePlayback,
@@ -85,8 +85,9 @@ export default function DialoguePage() {
           ← Диалоги
         </Link>
         <h1 className="mt-1 text-2xl font-semibold break-words">{dialogue.title}</h1>
-        <p lang="el" className="text-sm text-slate-500 dark:text-slate-400">
-          {dialogue.speakers.join(' · ')}
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          <span lang="el">{dialogue.speakers.join(' · ')}</span>
+          {byAuthor(dialogue.author)}
         </p>
       </div>
 

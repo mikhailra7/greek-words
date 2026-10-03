@@ -63,6 +63,7 @@ class DialogueOut(BaseModel):
     speakers: list[str]
     line_count: int
     can_edit: bool
+    author: str | None = None  # username of who made it
 
 
 class DialogueDetailOut(DialogueOut):

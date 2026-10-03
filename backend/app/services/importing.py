@@ -262,14 +262,16 @@ def assign_categories(
             word.category_source = "claude"
 
 
-def accept_category(db: Session, job: ImportJob, name: str) -> Category:
+def accept_category(
+    db: Session, job: ImportJob, name: str, created_by_id: int | None = None
+) -> Category:
     """Create (or reuse) the category Claude proposed and give it to every draft word
     that carried this suggestion."""
     key = _fold(name)
     cat = next((c for c in db.scalars(select(Category)) if _fold(c.name) == key), None)
     if cat is None:
         last = db.scalar(select(func.max(Category.position))) or 0
-        cat = Category(name=name.strip(), position=last + 1)
+        cat = Category(name=name.strip(), position=last + 1, created_by_id=created_by_id)
         db.add(cat)
         db.flush()
     for w in job.words:

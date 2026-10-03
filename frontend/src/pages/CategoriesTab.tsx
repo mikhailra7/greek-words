@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api/client.ts'
-import { pluralWords, type ActiveSummary, type Category } from '../api/types.ts'
+import { byAuthor, pluralWords, type ActiveSummary, type Category } from '../api/types.ts'
 import Sheet from '../components/Sheet.tsx'
 import { Button, Card, ErrorText, Field, Input, Spinner } from '../components/ui.tsx'
 import { categoryLabel } from '../lib/categories.ts'
@@ -76,6 +76,7 @@ export default function CategoriesTab({
                     <span className="block truncate font-medium">{categoryLabel(c)}</span>
                     <span className="block text-sm text-slate-500">
                       {c.word_count} {pluralWords(c.word_count)}
+                      {byAuthor(c.author)}
                     </span>
                   </span>
                   <span className="text-slate-400">›</span>

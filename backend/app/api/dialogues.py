@@ -38,6 +38,7 @@ def _out(d: Dialogue, user) -> DialogueOut:
         speakers=d.speakers,
         line_count=len(d.lines),
         can_edit=user.is_admin,
+        author=d.author.username if d.author else None,
     )
 
 

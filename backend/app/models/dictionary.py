@@ -1,11 +1,15 @@
 import hashlib
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.timeutil import utcnow
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 # Bump when the way audio files are produced changes, so browsers drop their cached copies
 # (audio URLs are cached for a year). 2: +0.3 s of silence at the start. 3: the ~1 s of
@@ -45,6 +49,8 @@ class Dictionary(Base):
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
+    # Who made it («Автор: …» on the site); kept NULL if that user is deleted.
+    author: Mapped["User | None"] = relationship(foreign_keys=[created_by_id], lazy="joined")
     words: Mapped[list["Word"]] = relationship(
         back_populates="dictionary",
         cascade="all, delete-orphan",

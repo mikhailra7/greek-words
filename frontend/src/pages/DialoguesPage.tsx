@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api/client.ts'
-import { pluralLines, type Dialogue } from '../api/types.ts'
+import { byAuthor, pluralLines, type Dialogue } from '../api/types.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import { Button, ErrorText, Spinner } from '../components/ui.tsx'
 import { PromptBox } from './HowToAddTab.tsx'
@@ -198,6 +198,7 @@ function DialogueCard({
           <p className="text-sm text-slate-500 dark:text-slate-400">
             <span lang="el">{d.speakers.join(' · ')}</span> · {d.line_count}{' '}
             {pluralLines(d.line_count)}
+            {byAuthor(d.author)}
           </p>
         </div>
         <Link

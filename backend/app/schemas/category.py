@@ -28,6 +28,7 @@ class CategoryOut(BaseModel):
     word_count: int
     is_active: bool
     can_edit: bool
+    author: str | None = None  # username of who made it
 
 
 class CategoryWordOut(WordOut):

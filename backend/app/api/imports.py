@@ -211,11 +211,11 @@ def publish(job_id: int, body: PublishIn, admin: AdminUser, db: DbSession) -> Di
 
 @router.post("/{job_id}/categories", response_model=ImportJobDetailOut)
 def accept_category(
-    job_id: int, body: AcceptCategoryIn, _: AdminUser, db: DbSession
+    job_id: int, body: AcceptCategoryIn, user: AdminUser, db: DbSession
 ) -> ImportJobDetailOut:
     """Accept a category Claude proposed: create it and assign it to the draft words."""
     job = _get_job(db, job_id)
-    importing.accept_category(db, job, body.name)
+    importing.accept_category(db, job, body.name, created_by_id=user.id)
     db.commit()
     return _detail(db, job)
 
