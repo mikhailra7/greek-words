@@ -16,11 +16,12 @@ import { Bubble } from '../dialogue/common.tsx'
 import { sleep, type Voice } from '../dialogue/voice.ts'
 import BuildMode from '../dialogue/BuildMode.tsx'
 import HideMode from '../dialogue/HideMode.tsx'
+import TypeMode from '../dialogue/TypeMode.tsx'
 
 // One dialogue (SPEC «Диалоги», Д4): «Чтение» (chat, listen to all) and «По ролям».
 // Д4.3–Д4.5 come later, each on its own request.
 
-type Mode = 'read' | 'roles' | 'hide' | 'build'
+type Mode = 'read' | 'roles' | 'hide' | 'build' | 'type'
 type Settings = {
   mode: Mode
   greek: boolean
@@ -31,6 +32,8 @@ type Settings = {
   stepByStep: boolean
   /** «Постепенное скрытие»: the level reached in each dialogue (by id). */
   levels: Record<string, number>
+  /** «Ввод по памяти»: the site's Greek keyboard instead of the device's. */
+  screenKeyboard: boolean
 }
 const DEFAULTS: Settings = {
   mode: 'read',
@@ -40,12 +43,14 @@ const DEFAULTS: Settings = {
   oneVoice: false,
   stepByStep: false,
   levels: {},
+  screenKeyboard: false,
 }
 const MODES: [Mode, string][] = [
   ['read', 'Чтение'],
   ['roles', 'По ролям'],
   ['hide', 'Скрытие слов'],
   ['build', 'Сборка фразы'],
+  ['type', 'Ввод по памяти'],
 ]
 
 const PAUSE_MS = 800 // between lines in «Прослушать весь диалог»
@@ -128,6 +133,15 @@ export default function DialoguePage() {
       )}
       {settings.mode === 'build' && (
         <BuildMode key={dialogue.id} dialogue={dialogue} voiceOf={voiceOf} />
+      )}
+      {settings.mode === 'type' && (
+        <TypeMode
+          key={dialogue.id}
+          dialogue={dialogue}
+          voiceOf={voiceOf}
+          screenKeyboard={settings.screenKeyboard}
+          setScreenKeyboard={(screenKeyboard) => update({ screenKeyboard })}
+        />
       )}
       {settings.mode === 'hide' && (
         <HideMode

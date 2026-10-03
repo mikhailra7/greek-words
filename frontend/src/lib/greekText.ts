@@ -46,3 +46,46 @@ function rank(lineId: number, i: number): number {
   h ^= h >>> 13
   return h >>> 0
 }
+
+// --- «Ввод по памяти» (Д4.5): a lenient comparison ---
+
+/** A word as compared in «Ввод по памяти»: no accents or diaeresis, lower case, σ for ς. */
+export function looseWord(word: string): string {
+  return word.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ')
+}
+
+export type LooseCheck = {
+  correct: boolean
+  /** Per typed word / per word of the line: true = it matches. */
+  given: { text: string; ok: boolean }[]
+  expected: { text: string; ok: boolean }[]
+  latin: boolean
+}
+
+/** Case, punctuation, accents and ς/σ don't matter; the words and their order do. Matching
+ * words are found by the longest common subsequence, so one missed word marks only itself. */
+export function compareLoose(typed: string, line: string): LooseCheck {
+  const given = words(typed)
+  const expected = words(line)
+  const a = given.map(looseWord)
+  const b = expected.map(looseWord)
+  const lcs = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0))
+  for (let i = a.length - 1; i >= 0; i--)
+    for (let j = b.length - 1; j >= 0; j--)
+      lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1])
+  const okA = new Array<boolean>(a.length).fill(false)
+  const okB = new Array<boolean>(b.length).fill(false)
+  for (let i = 0, j = 0; i < a.length && j < b.length;) {
+    if (a[i] === b[j]) {
+      okA[i++] = true
+      okB[j++] = true
+    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) i++
+    else j++
+  }
+  return {
+    correct: a.length === b.length && okA.every(Boolean),
+    given: given.map((text, i) => ({ text, ok: okA[i] })),
+    expected: expected.map((text, i) => ({ text, ok: okB[i] })),
+    latin: /[a-z]/i.test(typed),
+  }
+}

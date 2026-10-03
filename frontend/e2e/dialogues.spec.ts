@@ -331,3 +331,71 @@ test('dialogues: «Сборка фразы» — chips in order, wrong ones red,
   await page.getByRole('tab', { name: 'Чтение' }).click() // leave the shared user as it was
   await page.waitForTimeout(700)
 })
+
+test('dialogues: «Ввод по памяти» — lenient check, differing words marked, «Не знаю»', async ({
+  page,
+  request,
+}) => {
+  const d = await (
+    await request.post('/api/dialogues/import', { data: example(`Ввод ${Date.now()}`) })
+  ).json()
+  const audio = await recordAudio(page)
+  await page.goto(`/dialogues/${d.id}`)
+  await page.getByRole('tab', { name: 'Ввод по памяти' }).click()
+  await page.getByRole('radio', { name: 'Νίκος' }).click()
+  await page.getByLabel('Экранная клавиатура').check()
+  await page.getByRole('button', { name: 'Начать' }).click()
+
+  const field = page.getByLabel('Реплика по-гречески')
+  await expect(page.getByText('Меня зовут Никос. А тебя?')).toBeVisible({ timeout: 5_000 })
+  await expect(field).toHaveAttribute('inputmode', 'none') // the device keyboard stays closed
+  await expect(page.getByRole('group', { name: 'Греческая клавиатура' })).toBeVisible()
+  expect(await noSideScroll(page)).toBe(true)
+
+  // No accents, no capitals, no punctuation, σ for ς: still right; the line is shown as it is.
+  const played = audio.length
+  await field.fill('με λενε νικο εσενα')
+  await field.press('Enter')
+  await expect(page.getByText('Верно!')).toBeVisible()
+  await expect(page.getByLabel('Правильно')).toHaveText('Με λένε Νίκο. Εσένα;')
+  await expect.poll(() => audio.length).toBe(played + 1)
+  await page.getByRole('button', { name: 'Далее' }).click()
+
+  // One wrong word: only it is marked (red in mine, green in the right line).
+  await expect(page.getByText('Мне тоже. Откуда ты?')).toBeVisible({ timeout: 5_000 })
+  await field.fill('Κι εγώ. Από πού ησαι;')
+  await page.getByRole('button', { name: 'Проверить' }).click()
+  await expect(page.getByText('Есть отличия')).toBeVisible()
+  await expect(page.getByLabel('Ваш ответ').locator('.bg-red-100')).toHaveText(['ησαι'])
+  await expect(page.getByLabel('Правильно').locator('.bg-green-100')).toHaveText(['είσαι'])
+  await expect(page.getByLabel('Правильно')).toHaveText('Κι εγώ. Από πού είσαι;') // punctuation kept
+  await page.getByRole('button', { name: 'Далее' }).click()
+
+  // Latin letters get a hint; «Не знаю» shows the line and counts as wrong.
+  await expect(page.getByText('Тебе нравится Греция?')).toBeVisible({ timeout: 5_000 })
+  await field.fill('Sou aresei')
+  await field.press('Enter')
+  await expect(page.getByText('Похоже, введены латинские буквы')).toBeVisible()
+  await page.getByRole('button', { name: 'Далее' }).click()
+
+  await expect(page.getByText('Верно: 1 из 3')).toBeVisible({ timeout: 5_000 })
+  await page.getByRole('button', { name: 'Другие реплики' }).click()
+  await page.getByLabel('Экранная клавиатура').uncheck() // leave the shared user as it was
+  await page.getByRole('tab', { name: 'Чтение' }).click()
+  await page.waitForTimeout(700)
+})
+
+test('dialogues: «Ввод по памяти» — «Не знаю» shows the line', async ({ page, request }) => {
+  const d = await (
+    await request.post('/api/dialogues/import', { data: example(`Не знаю ${Date.now()}`) })
+  ).json()
+  await recordAudio(page)
+  await page.goto(`/dialogues/${d.id}`)
+  await page.getByRole('tab', { name: 'Ввод по памяти' }).click()
+  await page.getByRole('button', { name: 'Начать' }).click() // all lines
+  await page.getByRole('button', { name: 'Не знаю' }).click()
+  await expect(page.getByText('Правильно так:')).toBeVisible()
+  await expect(page.getByLabel('Правильно')).toHaveText('Γεια σου! Πώς σε λένε;')
+  await page.getByRole('tab', { name: 'Чтение' }).click()
+  await page.waitForTimeout(700)
+})
