@@ -11,8 +11,9 @@
 `data/` (SQLite, черновики импорта), `media/` (картинки и звук), `backups/` (архивы).
 Код приходит из GitHub, данные — архивом с ноутбука (`deploy/pack-data.sh`).
 
-**Сейчас:** `https://194-226-112-127.sslip.io` — VPS 194.226.112.127 (Ubuntu 24.04, 2 vCPU,
-2 ГБ RAM, 20 ГБ), пользователь `ubuntu`, проект в `/home/ubuntu/greek`. Вход только по SSH-ключу.
+**Сейчас (с 2026-10-03):** `https://31-31-192-134.sslip.io` — VPS 31.31.192.134 (Ubuntu 24.04,
+1 vCPU, 1 ГБ RAM + swap 2 ГБ, 20 ГБ), пользователь `ubuntu`, проект в `/home/ubuntu/greek`. Вход
+только по SSH-ключу. Прежний сервер 194.226.112.127 остановлен (данные на нём остались, cron снят).
 
 Требования к VPS: Ubuntu 24.04 или Debian 12, минимум 1 vCPU / 1 ГБ RAM (+ swap, скрипт
 создаёт 2 ГБ) / 15 ГБ диска, лучше 2 vCPU / 2 ГБ / 25+ ГБ. Домен с A-записью на IP сервера.
@@ -126,6 +127,21 @@ deploy/pull-backups.sh ubuntu@<IP>
 ssh ubuntu@<IP>
 cd greek && deploy/update.sh     # без sudo; бэкап → git pull → пересборка → перезапуск
 ```
+
+## Переезд на другой сервер
+
+Так переехали 2026-10-03 (простой — несколько минут):
+
+1. Новый сервер: «Первая установка», шаги 1–2 (`.env` можно взять со старого, поменяв `DOMAIN`),
+   заранее `docker compose build` и проверка озвучки — пока старый сайт работает.
+2. Старый: `docker compose stop backend`, финальная копия разовым контейнером —
+   `docker compose run --rm --no-deps -T backend python -m app.cli backup /app/data/<папка>/data/greek.db`,
+   и `tar` из неё + `media` + `data/imports` (тот же формат, что у `backup.sh`).
+3. Архив — через ноутбук (там остаётся копия) → `deploy/restore-data.sh` → `docker compose up -d`.
+4. Сверить число строк в таблицах, `pragma integrity_check`, HTTPS; cron бэкапа на новом;
+   на старом — `docker compose stop` и убрать `/etc/cron.d/greek-backup`.
+5. При смене адреса (sslip.io) все входят заново — сессии привязаны к адресу; установленное на
+   телефоне приложение ставится заново.
 
 ## Восстановление из бэкапа
 
