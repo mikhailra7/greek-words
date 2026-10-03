@@ -18,6 +18,7 @@ import {
   playableCount,
   trainingTotal,
   SessionShell,
+  Toggle,
   TrainerSetup,
   useActiveCount,
   sessionKey,
@@ -30,6 +31,8 @@ type Settings = {
   hideKnown: boolean
   repeatKnown: boolean
   inOrder: boolean
+  /** «Начать с русских слов»: Russian → pause → Greek → pause. */
+  ruFirst: boolean
 }
 
 const DEFAULT_PAUSE_SEC = 3
@@ -45,6 +48,7 @@ export default function ListenPage() {
     hideKnown: true,
     repeatKnown: false,
     inOrder: false,
+    ruFirst: false,
     count: 20,
     pauseSec: DEFAULT_PAUSE_SEC,
   })
@@ -82,6 +86,7 @@ export default function ListenPage() {
         key={sessionKey(words)}
         words={words}
         pauseMs={clampPause(settings?.pauseSec) * 1000}
+        ruFirst={settings?.ruFirst ?? false}
         onExit={() => setWords(null)}
         onRestart={start}
       />
@@ -104,9 +109,16 @@ export default function ListenPage() {
         {settings && total ? (
           <>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Слово по-гречески → пауза → по-русски → пауза → следующее. Пока идёт прослушивание,
-              экран телефона не гаснет.
+              {settings.ruFirst
+                ? 'Слово по-русски → пауза → по-гречески → пауза → следующее.'
+                : 'Слово по-гречески → пауза → по-русски → пауза → следующее.'}{' '}
+              Пока идёт прослушивание, экран телефона не гаснет.
             </p>
+            <Toggle
+              label="Начать с русских слов"
+              checked={settings.ruFirst}
+              onChange={(ruFirst) => update({ ruFirst })}
+            />
             <InOrderToggle checked={settings.inOrder} onChange={(inOrder) => update({ inOrder })} />
             {!settings.repeatKnown && (
               <HideKnownToggle
@@ -167,16 +179,18 @@ function PauseSlider({ value, onChange }: { value: number; onChange: (v: number)
 function ListenSession({
   words,
   pauseMs,
+  ruFirst,
   onExit,
   onRestart,
 }: {
   words: Word[]
   pauseMs: number
+  ruFirst: boolean
   onExit: () => void
   onRestart: () => void
 }) {
   const [index, setIndex] = useState(0)
-  const [phase, setPhase] = useState<Phase>('greek')
+  const [phase, setPhase] = useState<Phase>(ruFirst ? 'russian' : 'greek')
   const [paused, setPaused] = useState(false)
   const [done, setDone] = useState(false)
   // `jump`: word index requested by ⏮/⏭ — the current step stops and the loop goes there.
@@ -219,11 +233,20 @@ function ListenSession({
           preload(next.audio_ru_url)
         }
         setIndex(i)
-        setPhase('greek')
+        const greek: [Phase, () => Promise<void>] = [
+          'greek',
+          () => playUntilEnd(w.audio_url, w.full_greek, 'el-GR'),
+        ]
+        const russian: [Phase, () => Promise<void>] = [
+          'russian',
+          () => playUntilEnd(w.audio_ru_url, w.translations_ru.join(', '), 'ru-RU'),
+        ]
+        const [first, second] = ruFirst ? [russian, greek] : [greek, russian]
+        setPhase(first[0])
         const steps: [Phase, () => Promise<void>][] = [
-          ['greek', () => playUntilEnd(w.audio_url, w.full_greek, 'el-GR')],
+          first,
           ['gap1', () => wait(pauseMs)],
-          ['russian', () => playUntilEnd(w.audio_ru_url, w.translations_ru.join(', '), 'ru-RU')],
+          second,
           ['gap2', () => wait(pauseMs)],
         ]
         for (const [p, step] of steps) {
@@ -317,17 +340,24 @@ function ListenSession({
   }
 
   const word = words[index]
-  const showRussian = phase === 'russian' || phase === 'gap2'
+  // The first language is shown at once; the second one when it starts to sound.
+  const showRussian = ruFirst || phase === 'russian' || phase === 'gap2'
+  const showGreek = !ruFirst || phase === 'greek' || phase === 'gap2'
   return (
     <SessionShell progress={`${index + 1} / ${words.length}`} onExit={exit}>
       <div className="flex flex-1 flex-col items-center justify-center gap-10 text-center">
         <div className="w-full space-y-3 rounded-3xl bg-white px-4 py-10 shadow-lg dark:bg-slate-900">
-          <p lang="el" className="text-4xl font-semibold break-words">
-            {word.full_greek}
-          </p>
-          {word.transcription && (
-            <p className="text-lg text-slate-500 italic">{word.transcription}</p>
-          )}
+          <div
+            className={`space-y-3 transition-opacity duration-300 ${showGreek ? 'opacity-100' : 'opacity-0'}`}
+            aria-hidden={!showGreek}
+          >
+            <p lang="el" className="text-4xl font-semibold break-words">
+              {word.full_greek}
+            </p>
+            {word.transcription && (
+              <p className="text-lg text-slate-500 italic">{word.transcription}</p>
+            )}
+          </div>
           <p
             className={`text-2xl transition-opacity duration-300 ${showRussian ? 'opacity-100' : 'opacity-0'}`}
             aria-hidden={!showRussian}

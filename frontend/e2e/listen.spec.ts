@@ -59,3 +59,37 @@ test('audio review: greek → pause → russian → pause, pause/play, finish', 
   expect(kinds.slice(-4).length).toBe(4)
   expect(kinds).toContain('ru')
 })
+
+test('audio review: «Начать с русских слов» — Russian first, the Greek shows when it sounds', async ({
+  page,
+  request,
+}) => {
+  const id = await seedDictionary(request, `Аудио RU ${Date.now()}`)
+  await activateOnly(request, id)
+  const kinds: string[] = []
+  await page.route(/\/api\/words\/\d+\/audio/, (route) => {
+    kinds.push(new URL(route.request().url()).pathname.endsWith('/ru') ? 'ru' : 'el')
+    return route.fulfill({ status: 200, contentType: 'audio/wav', body: silentWav() })
+  })
+
+  await page.goto('/listen')
+  const ruFirst = page.getByLabel('Начать с русских слов')
+  await ruFirst.check()
+  await expect(page.getByText('Слово по-русски → пауза → по-гречески')).toBeVisible()
+  await setSlider(page, 1)
+  await setSlider(page, 1, 1) // pause 1 s
+  await page.getByRole('button', { name: 'Начать' }).click()
+
+  const status = page.locator('[aria-live=polite]')
+  const greek = page.locator('[aria-hidden] > p[lang=el]').locator('..')
+  await expect(status).toHaveText('по-русски')
+  await expect(greek).toHaveAttribute('aria-hidden', 'true') // only the Russian so far
+  await expect(status).toHaveText('по-гречески', { timeout: 4_000 })
+  await expect(greek).toHaveAttribute('aria-hidden', 'false')
+  await expect(page.getByText('Прослушано: 1 слово')).toBeVisible({ timeout: 6_000 })
+  expect(kinds.filter((k, i) => k !== kinds[i - 1])).toEqual(['ru', 'el']) // in this order
+
+  await page.getByRole('button', { name: 'В меню' }).click()
+  await ruFirst.uncheck() // leave the shared user as it was
+  await page.waitForTimeout(700)
+})
