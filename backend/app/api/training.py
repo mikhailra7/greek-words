@@ -13,7 +13,7 @@ from app.models import AnswerLog, UserSetting, Word
 from app.schemas.dictionary import WordOut
 from app.services import tts
 from app.services.quiz import TaskType, build_hard_questions, build_questions, mix_types
-from app.services.selection import active_words, visible_words, with_known
+from app.services.selection import active_words, in_dictionary_order, visible_words, with_known
 from app.services.selection import training_words as training_pool
 from app.services.spelling import check
 
@@ -50,12 +50,17 @@ def training_words(
     count: Annotated[int, Query(ge=1, le=2000)] = 20,
     hide_known: bool = True,
     known_only: bool = False,
+    in_order: bool = False,
 ) -> list[WordOut]:
     """`count` random words from the active dictionaries/categories, no repeats, new order
     every call; without the user's known words unless `hide_known=false`. `known_only`:
     from the user's known words in all dictionaries instead («Повторить выученные слова»)."""
     words = training_pool(db, user, hide_known, known_only)
-    picked = random.sample(words, min(count, len(words)))
+    picked = (
+        in_dictionary_order(db, user, words, count)  # «Порядок по словарю»
+        if in_order
+        else random.sample(words, min(count, len(words)))
+    )
     _prepare(db, user, picked, ("el", "ru"))  # «Аудио повторение» also reads Russian
     return with_known(db, user, picked, WordOut)
 

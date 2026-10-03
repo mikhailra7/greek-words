@@ -9,6 +9,7 @@ import {
   CountSlider,
   fetchTrainingWords,
   HideKnownToggle,
+  InOrderToggle,
   playableCount,
   trainingTotal,
   SessionShell,
@@ -26,6 +27,7 @@ type StudySettings = {
   wordOnly: boolean
   hideKnown: boolean
   repeatKnown: boolean
+  inOrder: boolean
 }
 
 export default function StudyPage() {
@@ -33,6 +35,7 @@ export default function StudyPage() {
   const [settings, update] = useTrainerSettings<StudySettings>('study', {
     hideKnown: true,
     repeatKnown: false,
+    inOrder: false,
     count: 20,
     speak: true,
     wordOnly: false,
@@ -55,6 +58,7 @@ export default function StudyPage() {
           count,
           settings?.hideKnown ?? true,
           settings?.repeatKnown ?? false,
+          settings?.inOrder ?? false,
         ),
       )
     } catch (e) {
@@ -92,6 +96,7 @@ export default function StudyPage() {
       >
         {settings && total ? (
           <>
+            <InOrderToggle checked={settings.inOrder} onChange={(inOrder) => update({ inOrder })} />
             <Toggle
               label="Озвучивать слова"
               checked={settings.speak}

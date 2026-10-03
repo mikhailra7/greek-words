@@ -14,6 +14,7 @@ import {
   CountSlider,
   fetchTrainingWords,
   HideKnownToggle,
+  InOrderToggle,
   playableCount,
   trainingTotal,
   SessionShell,
@@ -23,7 +24,13 @@ import {
   useTrainerSettings,
 } from '../trainers/common.tsx'
 
-type Settings = { count: number; pauseSec: number; hideKnown: boolean; repeatKnown: boolean }
+type Settings = {
+  count: number
+  pauseSec: number
+  hideKnown: boolean
+  repeatKnown: boolean
+  inOrder: boolean
+}
 
 const DEFAULT_PAUSE_SEC = 3
 const MIN_PAUSE_SEC = 1
@@ -37,6 +44,7 @@ export default function ListenPage() {
   const [settings, update] = useTrainerSettings<Settings>('listen', {
     hideKnown: true,
     repeatKnown: false,
+    inOrder: false,
     count: 20,
     pauseSec: DEFAULT_PAUSE_SEC,
   })
@@ -58,6 +66,7 @@ export default function ListenPage() {
           count,
           settings?.hideKnown ?? true,
           settings?.repeatKnown ?? false,
+          settings?.inOrder ?? false,
         ),
       )
     } catch (e) {
@@ -98,6 +107,7 @@ export default function ListenPage() {
               Слово по-гречески → пауза → по-русски → пауза → следующее. Пока идёт прослушивание,
               экран телефона не гаснет.
             </p>
+            <InOrderToggle checked={settings.inOrder} onChange={(inOrder) => update({ inOrder })} />
             {!settings.repeatKnown && (
               <HideKnownToggle
                 checked={settings.hideKnown}

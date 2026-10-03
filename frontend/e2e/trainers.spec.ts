@@ -433,3 +433,36 @@ test('write: «Экранная клавиатура» — the site keyboard on 
   await setting.uncheck() // leave the shared user as it was
   await page.waitForTimeout(700) // saved with a short debounce
 })
+
+test('«Порядок по словарю»: «Изучение» goes as in the dictionary; «Аудио» asks for it too', async ({
+  page,
+}) => {
+  await page.goto('/study')
+  await page.getByLabel('Показывать только слово').uncheck()
+  await page.getByLabel('Озвучивать слова').uncheck()
+  const inOrder = page.getByLabel('Порядок по словарю')
+  await inOrder.check()
+  await expect(page.getByText('Как в словаре: словари — в порядке списка')).toBeVisible()
+  await setSlider(page, WORDS.length)
+  await page.getByRole('button', { name: 'Начать' }).click()
+  const seen: string[] = []
+  for (let i = 1; i <= WORDS.length; i++) {
+    await expect(page.getByText(`${i} / ${WORDS.length}`)).toBeVisible()
+    seen.push((await page.locator('article p.text-3xl').textContent())!.trim())
+    await page.getByRole('button', { name: 'Следующее слово' }).click()
+  }
+  expect(seen).toEqual(WORDS.map(fullGreek)) // the seeded order
+  await page.getByRole('button', { name: 'В меню' }).click()
+  await inOrder.uncheck() // leave the shared user as it was
+
+  await page.goto('/listen')
+  const listenOrder = page.getByLabel('Порядок по словарю')
+  await listenOrder.check()
+  const asked = page.waitForRequest(/\/api\/training\/words\?.*in_order=true/)
+  await page.getByRole('button', { name: 'Начать' }).click()
+  await asked
+  page.once('dialog', (d) => d.accept()) // «Закончить?»
+  await page.getByRole('button', { name: 'Выйти' }).click()
+  await listenOrder.uncheck()
+  await page.waitForTimeout(700)
+})

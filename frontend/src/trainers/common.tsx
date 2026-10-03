@@ -79,9 +79,33 @@ export async function fetchTrainingWords(
   count: number,
   hideKnown: boolean,
   repeatKnown = false,
+  inOrder = false,
 ): Promise<Word[]> {
   return api<Word[]>(
-    `/training/words?count=${count}&hide_known=${hideKnown}&known_only=${repeatKnown}`,
+    `/training/words?count=${count}&hide_known=${hideKnown}&known_only=${repeatKnown}` +
+      `&in_order=${inOrder}`,
+  )
+}
+
+// «Порядок по словарю» — «Изучение» and «Аудио повторение»: the words as in the dictionaries
+// instead of shuffled (the server picks them, see app/services/selection.py).
+export function InOrderToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <div>
+      <Toggle label="Порядок по словарю" checked={checked} onChange={onChange} />
+      {checked && (
+        <p className="mt-1 ml-9 text-sm text-slate-500">
+          Как в словаре: словари — в порядке списка «Словари», внутри — по порядку слов. Если
+          выбрано меньше слов, из каждого словаря берётся подряд кусок со случайного места.
+        </p>
+      )}
+    </div>
   )
 }
 

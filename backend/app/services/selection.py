@@ -103,3 +103,69 @@ def with_known(db: Session, user: User, words: list, schema) -> list:
         item.known = w.id in known
         out.append(item)
     return out
+
+
+def in_dictionary_order(db: Session, user: User, words: list[Word], count: int) -> list[Word]:
+    """«Порядок по словарю» (SPEC): the words as in the dictionaries — the dictionaries in the
+    order of the «Словари» list, each by its word order; then the words that came from the
+    active categories, by category (and inside one, by dictionary and position). With fewer
+    words wanted than there are, each group gives a share proportional to its size, as one
+    unbroken run from a random place in it."""
+    import random
+
+    dict_order = {
+        d_id: i
+        for i, d_id in enumerate(
+            db.scalars(select(Dictionary.id).where(_visible(user)).order_by(Dictionary.created_at))
+        )
+    }
+    active = set(
+        db.scalars(
+            select(UserActiveDictionary.dictionary_id).where(
+                UserActiveDictionary.user_id == user.id
+            )
+        )
+    )
+    from app.models import Category
+
+    cat_order = {
+        c_id: i
+        for i, c_id in enumerate(
+            db.scalars(select(Category.id).order_by(Category.position, Category.name))
+        )
+    }
+
+    def group(w: Word) -> tuple:
+        # Not from an active dictionary (so it came with a category, or it's a known word in
+        # «Повторить выученные»): its category if any, else its own dictionary.
+        if w.dictionary_id in active or w.category_id is None:
+            return (0, dict_order.get(w.dictionary_id, 1 << 30))
+        return (1, cat_order.get(w.category_id, 1 << 30))
+
+    groups: dict[tuple, list[Word]] = {}
+    for w in words:
+        groups.setdefault(group(w), []).append(w)
+    ordered = [
+        sorted(
+            groups[k], key=lambda w: (dict_order.get(w.dictionary_id, 1 << 30), w.position, w.id)
+        )
+        for k in sorted(groups)
+    ]
+
+    total = sum(len(g) for g in ordered)
+    if count >= total:
+        return [w for g in ordered for w in g]
+    # Largest remainder: shares add up to `count`, no group gives more than it has.
+    exact = [count * len(g) / total for g in ordered]
+    shares = [int(x) for x in exact]
+    for i in sorted(range(len(ordered)), key=lambda i: exact[i] - shares[i], reverse=True):
+        if sum(shares) >= count:
+            break
+        if shares[i] < len(ordered[i]):
+            shares[i] += 1
+    picked: list[Word] = []
+    for g, n in zip(ordered, shares, strict=True):
+        if n:
+            start = random.randint(0, len(g) - n)
+            picked.extend(g[start : start + n])
+    return picked
