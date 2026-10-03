@@ -275,3 +275,59 @@ test('dialogues: «Скрытие слов» — levels hide more of the same wo
   await page.getByRole('tab', { name: 'Чтение' }).click() // leave the shared user as it was
   await page.waitForTimeout(700)
 })
+
+test('dialogues: «Сборка фразы» — chips in order, wrong ones red, «Показать ответ», result', async ({
+  page,
+  request,
+}) => {
+  const d = await (
+    await request.post('/api/dialogues/import', { data: example(`Сборка ${Date.now()}`) })
+  ).json()
+  const audio = await recordAudio(page)
+  await page.goto(`/dialogues/${d.id}`)
+  await page.getByRole('tab', { name: 'Сборка фразы' }).click()
+  await page.getByRole('radio', { name: 'Νίκος' }).click()
+  await page.getByRole('button', { name: 'Начать' }).click()
+
+  const pool = page.locator('[aria-label="Слова"]')
+  const built = page.locator('[aria-label="Собранная фраза"]')
+  const place = async (...ws: string[]) => {
+    for (const w of ws) await pool.getByRole('button', { name: w, exact: true }).click()
+  }
+
+  // Μαρία's line is context: it plays by itself. Then mine — translation and chips.
+  await expect.poll(() => audio.length).toBeGreaterThan(0)
+  await expect(page.getByText('Меня зовут Никос. А тебя?')).toBeVisible()
+  await expect(pool.getByRole('button')).toHaveCount(4) // Με λένε Νίκο Εσένα, no punctuation
+  expect(await noSideScroll(page)).toBe(true)
+
+  await place('Εσένα', 'Με', 'λένε', 'Νίκο') // wrong order
+  await expect(page.getByRole('status')).toContainText('Не тот порядок')
+  await expect(built.locator('button.border-red-500')).toHaveCount(4)
+  for (const w of ['Εσένα', 'Με', 'λένε', 'Νίκο'])
+    await built.getByRole('button', { name: w, exact: true }).click() // back to the pool
+  const played = audio.length
+  await place('Με', 'λένε', 'Νίκο', 'Εσένα')
+  await expect(page.getByText('Με λένε Νίκο. Εσένα;')).toBeVisible() // with the punctuation
+  await expect.poll(() => audio.length).toBe(played + 1) // and it plays
+  await page.getByRole('button', { name: 'Далее' }).click()
+
+  await expect(page.getByText('Мне тоже. Откуда ты?')).toBeVisible({ timeout: 5_000 })
+  await page.getByRole('button', { name: 'Показать ответ' }).click()
+  await expect(page.getByText('Κι εγώ. Από πού είσαι;')).toBeVisible()
+  await page.getByRole('button', { name: 'Далее' }).click()
+
+  await expect(page.getByText('Тебе нравится Греция?')).toBeVisible({ timeout: 5_000 })
+  await place('Σου', 'αρέσει', 'η', 'Ελλάδα')
+  await page.getByRole('button', { name: 'Далее' }).click()
+
+  await expect(page.getByText('С первого раза: 1 из 3')).toBeVisible({ timeout: 5_000 })
+  await expect(page.getByRole('listitem').filter({ hasText: 'Με λένε Νίκο. Εσένα;' })).toBeVisible()
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'Κι εγώ. Από πού είσαι;' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Другие реплики' }).click()
+  await expect(page.getByRole('radiogroup', { name: 'Какие реплики' })).toBeVisible()
+  await page.getByRole('tab', { name: 'Чтение' }).click() // leave the shared user as it was
+  await page.waitForTimeout(700)
+})

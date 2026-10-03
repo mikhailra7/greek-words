@@ -14,12 +14,13 @@ import {
 import { Toggle, useTrainerSettings } from '../trainers/common.tsx'
 import { Bubble } from '../dialogue/common.tsx'
 import { sleep, type Voice } from '../dialogue/voice.ts'
+import BuildMode from '../dialogue/BuildMode.tsx'
 import HideMode from '../dialogue/HideMode.tsx'
 
 // One dialogue (SPEC «Диалоги», Д4): «Чтение» (chat, listen to all) and «По ролям».
 // Д4.3–Д4.5 come later, each on its own request.
 
-type Mode = 'read' | 'roles' | 'hide'
+type Mode = 'read' | 'roles' | 'hide' | 'build'
 type Settings = {
   mode: Mode
   greek: boolean
@@ -44,6 +45,7 @@ const MODES: [Mode, string][] = [
   ['read', 'Чтение'],
   ['roles', 'По ролям'],
   ['hide', 'Скрытие слов'],
+  ['build', 'Сборка фразы'],
 ]
 
 const PAUSE_MS = 800 // between lines in «Прослушать весь диалог»
@@ -123,6 +125,9 @@ export default function DialoguePage() {
       )}
       {settings.mode === 'roles' && (
         <RolesMode key={dialogue.id} dialogue={dialogue} voiceOf={voiceOf} />
+      )}
+      {settings.mode === 'build' && (
+        <BuildMode key={dialogue.id} dialogue={dialogue} voiceOf={voiceOf} />
       )}
       {settings.mode === 'hide' && (
         <HideMode
