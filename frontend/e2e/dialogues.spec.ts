@@ -215,3 +215,63 @@ test('dialogues: a member reads and learns, but adds / replaces / deletes nothin
   await expect(page.getByRole('button', { name: 'Вставить ответ Claude' })).toHaveCount(0)
   await ctx.close()
 })
+
+test('dialogues: «Скрытие слов» — levels hide more of the same words; peeks; next level', async ({
+  page,
+  request,
+}) => {
+  const d = await (
+    await request.post('/api/dialogues/import', { data: example(`Скрытие ${Date.now()}`) })
+  ).json()
+  const allWords = EXAMPLE.lines.flatMap(
+    (l: { greek: string }) => l.greek.match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu) ?? [],
+  ).length
+  await page.goto(`/dialogues/${d.id}`)
+  await page.getByRole('tab', { name: 'Скрытие слов' }).click()
+
+  const blanks = page.getByRole('button', { name: 'Скрытое слово — открыть' })
+  // Which words are hidden: «line number:word», read from the invisible text of the blanks.
+  const hiddenNow = () =>
+    page
+      .locator('ul > li')
+      .evaluateAll((items) =>
+        items.flatMap((li, i) =>
+          [...li.querySelectorAll('button[aria-label="Скрытое слово — открыть"]')].map(
+            (b) => `${i}:${b.textContent}`,
+          ),
+        ),
+      )
+  const level = (n: number) => page.getByRole('radio', { name: new RegExp(`^Уровень ${n}:`) })
+
+  await expect(blanks).toHaveCount(0) // level 0: the whole text
+  await level(1).click()
+  const one = await hiddenNow()
+  expect(one.length).toBeGreaterThanOrEqual(EXAMPLE.lines.length) // at least one per line
+  await level(2).click()
+  const two = await hiddenNow()
+  expect(two.length).toBeGreaterThan(one.length)
+  expect(one.every((w) => two.includes(w))).toBe(true) // the same words, plus more
+  await level(3).click()
+  await expect(blanks).toHaveCount(allWords) // only the translation is left
+  await expect(page.getByText('Привет! Как тебя зовут?')).toBeVisible()
+  expect(await noSideScroll(page)).toBe(true)
+
+  // A peek opens one word; «Готово» hides them again and tells how many were opened.
+  await level(1).click()
+  await blanks.first().click()
+  await expect(blanks).toHaveCount(one.length - 1)
+  await page.getByRole('button', { name: 'Готово (подсмотрено: 1)' }).click()
+  await expect(page.getByRole('status')).toContainText('Подсмотрено слов: 1')
+  await expect(blanks).toHaveCount(one.length)
+
+  // Without peeks: on to the next level — and it's remembered for this dialogue.
+  await page.getByRole('button', { name: 'Готово', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('Без подсказок! Уровень 2')
+  await expect(level(2)).toHaveAttribute('aria-checked', 'true')
+  await page.waitForTimeout(700) // settings are saved with a short debounce
+  await page.reload()
+  await expect(level(2)).toHaveAttribute('aria-checked', 'true')
+
+  await page.getByRole('tab', { name: 'Чтение' }).click() // leave the shared user as it was
+  await page.waitForTimeout(700)
+})

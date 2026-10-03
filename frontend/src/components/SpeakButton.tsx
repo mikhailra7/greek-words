@@ -24,10 +24,13 @@ export default function SpeakButton({
   url,
   text,
   className = '',
+  onPlay,
 }: {
   url: string
   text: string
   className?: string
+  /** Plays it differently (e.g. a dialogue role's own voice) instead of speak(url, text). */
+  onPlay?: () => void
 }) {
   const [active, setActive] = useState(false)
   return (
@@ -37,7 +40,8 @@ export default function SpeakButton({
         e.stopPropagation()
         setActive(true)
         setTimeout(() => setActive(false), 900)
-        speak(url, text)
+        if (onPlay) onPlay()
+        else speak(url, text)
       }}
       className={`flex shrink-0 items-center justify-center rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-slate-800 ${
         active ? 'text-blue-600 dark:text-blue-400' : ''

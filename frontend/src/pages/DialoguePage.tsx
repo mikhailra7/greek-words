@@ -10,14 +10,16 @@ import {
   speak,
   stopPlayback,
   unlockAudio,
-  type SpeakOptions,
 } from '../lib/speaker.ts'
 import { Toggle, useTrainerSettings } from '../trainers/common.tsx'
+import { Bubble } from '../dialogue/common.tsx'
+import { sleep, type Voice } from '../dialogue/voice.ts'
+import HideMode from '../dialogue/HideMode.tsx'
 
 // One dialogue (SPEC «Диалоги», Д4): «Чтение» (chat, listen to all) and «По ролям».
 // Д4.3–Д4.5 come later, each on its own request.
 
-type Mode = 'read' | 'roles'
+type Mode = 'read' | 'roles' | 'hide'
 type Settings = {
   mode: Mode
   greek: boolean
@@ -26,6 +28,8 @@ type Settings = {
   oneVoice: boolean
   /** «Пауза между репликами»: no playing it all in a row — line by line with the → button. */
   stepByStep: boolean
+  /** «Постепенное скрытие»: the level reached in each dialogue (by id). */
+  levels: Record<string, number>
 }
 const DEFAULTS: Settings = {
   mode: 'read',
@@ -34,16 +38,15 @@ const DEFAULTS: Settings = {
   translation: true,
   oneVoice: false,
   stepByStep: false,
+  levels: {},
 }
 const MODES: [Mode, string][] = [
   ['read', 'Чтение'],
   ['roles', 'По ролям'],
+  ['hide', 'Скрытие слов'],
 ]
 
 const PAUSE_MS = 800 // between lines in «Прослушать весь диалог»
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-type Voice = (speaker: number) => SpeakOptions
 
 export default function DialoguePage() {
   const { id } = useParams()
@@ -81,7 +84,7 @@ export default function DialoguePage() {
       </div>
 
       <div
-        className="grid grid-cols-2 rounded-xl bg-slate-200 p-1 dark:bg-slate-800"
+        className="grid grid-cols-3 gap-1 rounded-xl bg-slate-200 p-1 dark:bg-slate-800"
         role="tablist"
       >
         {MODES.map(([mode, label]) => (
@@ -115,78 +118,22 @@ export default function DialoguePage() {
         </p>
       </div>
 
-      {settings.mode === 'read' ? (
+      {settings.mode === 'read' && (
         <ReadMode dialogue={dialogue} settings={settings} update={update} voiceOf={voiceOf} />
-      ) : (
+      )}
+      {settings.mode === 'roles' && (
         <RolesMode key={dialogue.id} dialogue={dialogue} voiceOf={voiceOf} />
       )}
+      {settings.mode === 'hide' && (
+        <HideMode
+          key={dialogue.id}
+          dialogue={dialogue}
+          voiceOf={voiceOf}
+          level={settings.levels?.[dialogue.id] ?? 0}
+          setLevel={(level) => update({ levels: { ...settings.levels, [dialogue.id]: level } })}
+        />
+      )}
     </section>
-  )
-}
-
-// --- the chat ---
-
-const BUBBLE = [
-  'bg-white dark:bg-slate-900',
-  'bg-blue-50 dark:bg-blue-950/60',
-  'bg-emerald-50 dark:bg-emerald-950/60',
-]
-
-function Bubble({
-  line,
-  speakers,
-  show,
-  active = false,
-  onTap,
-  children,
-  bubbleRef,
-}: {
-  line: DialogueLine
-  speakers: string[]
-  show: { greek: boolean; transcription: boolean; translation: boolean }
-  active?: boolean
-  onTap?: () => void
-  children?: React.ReactNode
-  bubbleRef?: (el: HTMLLIElement | null) => void
-}) {
-  const left = line.speaker === 0
-  const body = (
-    <>
-      <span className="block text-xs font-medium text-slate-500 dark:text-slate-400" lang="el">
-        {speakers[line.speaker]}
-      </span>
-      {show.greek && (
-        <span lang="el" className="block text-lg break-words">
-          {line.greek}
-        </span>
-      )}
-      {show.transcription && line.transcription && (
-        <span className="block text-slate-500 italic break-words dark:text-slate-400">
-          {line.transcription}
-        </span>
-      )}
-      {show.translation && <span className="block break-words">{line.translation_ru}</span>}
-      {show.translation && line.note && (
-        <span className="mt-1 block text-xs text-amber-700 dark:text-amber-400">{line.note}</span>
-      )}
-    </>
-  )
-  const cls = `max-w-[85%] min-w-0 rounded-2xl px-4 py-2.5 text-left shadow-sm ${BUBBLE[line.speaker % 3]} ${
-    left ? 'rounded-bl-md' : 'rounded-br-md'
-  } ${active ? 'ring-2 ring-blue-500' : ''}`
-  return (
-    <li ref={bubbleRef} className={`flex ${left ? 'justify-start' : 'justify-end'}`}>
-      <div className={cls}>
-        {onTap ? (
-          <button type="button" onClick={onTap} className="block w-full text-left">
-            {body}
-          </button>
-        ) : (
-          body
-        )}
-        {children}
-      </div>
-    </li>
   )
 }
 
