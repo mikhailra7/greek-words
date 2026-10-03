@@ -89,7 +89,7 @@ def test_training_pool_is_union_of_dictionaries_and_categories(admin_client, mem
         )
 
     summary = member.put(f"/api/categories/{food}/active", json={"active": True}).json()
-    assert summary == {"dictionaries": 0, "categories": 1, "words": 2, "known": 0}
+    assert summary == {"dictionaries": 0, "categories": 1, "words": 2, "known": 0, "known_all": 0}
     assert pool() == ["νερό", "ψωμί"]  # the category pulls from both dictionaries
 
     member.put(f"/api/dictionaries/{d1}/active", json={"active": True})
@@ -99,6 +99,7 @@ def test_training_pool_is_union_of_dictionaries_and_categories(admin_client, mem
         "categories": 1,
         "words": 3,
         "known": 0,
+        "known_all": 0,
     }
     assert [c["is_active"] for c in member.get("/api/categories").json()] == [True]
     assert admin_client.get("/api/words/active/count").json()["words"] == 0  # per user

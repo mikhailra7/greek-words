@@ -80,7 +80,7 @@ def test_active_dictionaries_are_per_user(admin_client, member):
     admin_client.post(f"/api/dictionaries/{d2}/words", json=WATER)
 
     r = member.put(f"/api/dictionaries/{d2}/active", json={"active": True})
-    assert r.json() == {"dictionaries": 1, "categories": 0, "words": 2, "known": 0}
+    assert r.json() == {"dictionaries": 1, "categories": 0, "words": 2, "known": 0, "known_all": 0}
     # idempotent
     assert member.put(f"/api/dictionaries/{d2}/active", json={"active": True}).json()["words"] == 2
 
@@ -89,6 +89,7 @@ def test_active_dictionaries_are_per_user(admin_client, member):
         "categories": 0,
         "words": 0,
         "known": 0,
+        "known_all": 0,
     }
     flags = {
         d["id"]: d["is_active"] for d in member.get("/api/dictionaries").json()["dictionaries"]
@@ -101,6 +102,7 @@ def test_active_dictionaries_are_per_user(admin_client, member):
         "categories": 0,
         "words": 0,
         "known": 0,
+        "known_all": 0,
     }
 
 
@@ -114,6 +116,7 @@ def test_hidden_active_dictionary_not_counted(admin_client, member):
         "categories": 0,
         "words": 0,
         "known": 0,
+        "known_all": 0,
     }
 
 
@@ -166,6 +169,7 @@ def test_delete_dictionary_cascades(admin_client, member):
         "categories": 0,
         "words": 0,
         "known": 0,
+        "known_all": 0,
     }
     assert admin_client.get(f"/api/dictionaries/{d}").status_code == 404
 
