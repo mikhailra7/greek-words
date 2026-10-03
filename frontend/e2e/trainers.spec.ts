@@ -128,8 +128,9 @@ test('translate hard mode: look-alike options, RU→GR only', async ({ page }) =
   await expect(options).toHaveCount(4)
   const texts = (await options.allTextContents()).map((t) => t.replace(/^\d/, '').trim())
   expect(texts.filter((t) => t === right)).toHaveLength(1)
-  // All seed words are «το …» nouns: exactly one option has another article.
-  expect(texts.filter((t) => !t.startsWith('το '))).toHaveLength(1)
+  // All seed words are «το …» nouns.
+  // A random mix of mistakes now: 0–2 of the options may have another article (ο / η).
+  expect(texts.filter((t) => !t.startsWith('το ')).length).toBeLessThanOrEqual(2)
   // The others are «το» + a near-copy of the word (same length ±1).
   for (const t of texts.filter((x) => x.startsWith('το ') && x !== right)) {
     expect(Math.abs(t.length - right.length)).toBeLessThanOrEqual(1)

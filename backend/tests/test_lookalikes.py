@@ -16,17 +16,35 @@ def base(word: str) -> str:
     return unicodedata.normalize("NFD", word).replace(ACUTE, "")
 
 
-@pytest.mark.parametrize("seed", range(20))
-def test_noun_gets_article_accent_and_letter(seed):
-    out = lookalikes("το", "νερό", random.Random(seed))
-    assert len(out) == 3 and len(set(out)) == 3 and "το νερό" not in out
-    arts = [o.split(" ")[0] for o in out]
-    assert sum(a in ("ο", "η") for a in arts) == 1  # one wrong article (singular group)
-    words = [o.split(" ", 1)[1] for o in out if o.startswith("το ")]
-    accent = [w for w in words if base(w) == "νερο"]
-    assert len(accent) == 1 and accent_pos(accent[0]) != accent_pos("νερό")
-    letter = [w for w in words if base(w) != "νερο"]
-    assert len(letter) == 1 and ACUTE in unicodedata.normalize("NFD", letter[0])
+def kind(variant: str, article: str | None, greek: str) -> str:
+    """Which single mistake a variant has: article / accent / letter."""
+    art, word = variant.split(" ", 1) if article else (None, variant)
+    if art != article:
+        assert word == greek, variant  # only the article differs
+        return "article"
+    assert word != greek
+    return "accent" if base(word) == base(greek) else "letter"
+
+
+@pytest.mark.parametrize("seed", range(30))
+def test_noun_three_variants_each_with_one_mistake(seed):
+    out = lookalikes("η", "γυναίκα", random.Random(seed))
+    assert len(out) == 3 and len(set(out)) == 3 and "η γυναίκα" not in out
+    for v in out:
+        kind(v, "η", "γυναίκα")  # exactly one kind of mistake each
+
+
+def test_kinds_are_mixed_at_random():
+    """Not one of each any more: any mix the word allows — three letters, two articles, two
+    accents — turns up."""
+    combos = set()
+    for seed in range(300):
+        out = lookalikes("η", "γυναίκα", random.Random(seed))
+        combos.add(tuple(sorted(kind(v, "η", "γυναίκα") for v in out)))
+    assert ("letter", "letter", "letter") in combos
+    assert any(c.count("article") == 2 for c in combos)  # ο γυναίκα and το γυναίκα
+    assert any(c.count("accent") == 2 for c in combos)  # γύναικα and γυναικά
+    assert ("accent", "article", "letter") in combos  # the old fixed mix is still possible
 
 
 def test_plural_article_stays_plural():
@@ -36,17 +54,18 @@ def test_plural_article_stays_plural():
     assert wrong_article(None, random.Random()) is None
 
 
-def test_no_article_two_wrong_letters():
-    out = lookalikes(None, "πίνω", random.Random(3))
-    assert len(out) == 3
-    assert sum(base(o) == base("πίνω") for o in out) == 1  # one wrong accent
-    assert sum(base(o) != base("πίνω") for o in out) == 2  # two wrong letters
+def test_no_article_no_article_mistakes():
+    for seed in range(20):
+        out = lookalikes(None, "πίνω", random.Random(seed))
+        assert len(out) == 3 and "πίνω" not in out
+        assert {kind(v, None, "πίνω") for v in out} <= {"accent", "letter"}
 
 
-def test_one_vowel_two_wrong_letters():
-    out = lookalikes("το", "φως", random.Random(1))
-    assert out[0] in ("ο φως", "η φως")
-    assert all(o.startswith("το ") for o in out[1:]) and len(out) == 3
+def test_one_vowel_no_accent_mistakes():
+    for seed in range(20):
+        out = lookalikes("το", "φως", random.Random(seed))
+        assert len(out) == 3
+        assert {kind(v, "το", "φως") for v in out} <= {"article", "letter"}
     assert wrong_accent("φως", random.Random()) is None
     assert wrong_accent("πώς", random.Random()) is None  # one vowel sound
 

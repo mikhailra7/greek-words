@@ -88,27 +88,33 @@ def _graphemes(letters: list[Letter]) -> list[tuple[int, int]]:
     return spans
 
 
-def wrong_accent(word: str, rng: random.Random) -> str | None:
-    """The accent moved to another vowel of the same word (next to the right one if possible).
-    None when no word in `word` has an accent and a second vowel to move it to."""
+def wrong_accents(word: str) -> list[str]:
+    """Every spelling with the accent moved to a neighbouring vowel of the same word (digraphs
+    count as one vowel). Empty when no word in `word` has an accent and a second vowel."""
     tokens = word.split(" ")
-    options = []
+    out = []
     for t, token in enumerate(tokens):
+        spans = _graphemes(_letters(token))
         letters = _letters(token)
-        spans = _graphemes(letters)
         accented = [n for n, (a, b) in enumerate(spans) if any(x.acute for x in letters[a:b])]
-        if accented and len(spans) > 1:
-            options.append((t, letters, spans, accented[0]))
-    if not options:
-        return None
-    t, letters, spans, cur = rng.choice(options)
-    near = [n for n in (cur - 1, cur + 1) if 0 <= n < len(spans)]
-    target = rng.choice(near)
-    for x in letters:
-        x.acute = False
-    letters[spans[target][1] - 1].acute = True  # on the second letter of a digraph
-    tokens[t] = _join(letters)
-    return " ".join(tokens)
+        if not accented or len(spans) < 2:
+            continue
+        cur = accented[0]
+        for target in (cur - 1, cur + 1):
+            if not 0 <= target < len(spans):
+                continue
+            moved = _letters(token)
+            for x in moved:
+                x.acute = False
+            moved[spans[target][1] - 1].acute = True  # on the second letter of a digraph
+            out.append(" ".join(tokens[:t] + [_join(moved)] + tokens[t + 1 :]))
+    return list(dict.fromkeys(v for v in out if v != word))
+
+
+def wrong_accent(word: str, rng: random.Random) -> str | None:
+    """One of `wrong_accents`, or None."""
+    options = wrong_accents(word)
+    return rng.choice(options) if options else None
 
 
 def wrong_letters(word: str) -> tuple[list[str], list[str]]:
@@ -160,34 +166,49 @@ def wrong_letters(word: str) -> tuple[list[str], list[str]]:
     return unique(sound + double), unique(typo)
 
 
-def wrong_article(article: str | None, rng: random.Random) -> str | None:
+def wrong_articles(article: str | None) -> list[str]:
+    """The other articles of the same number (ο/η/το, οι/τα)."""
     for group in ARTICLE_GROUPS:
         if article in group:
-            return rng.choice([a for a in group if a != article])
-    return None
+            return [a for a in group if a != article]
+    return []
+
+
+def wrong_article(article: str | None, rng: random.Random) -> str | None:
+    options = wrong_articles(article)
+    return rng.choice(options) if options else None
 
 
 def lookalikes(article: str | None, greek: str, rng: random.Random | None = None) -> list[str]:
-    """Up to 3 wrong full forms («το νερό» style): wrong article, wrong accent, wrong letter.
-    Whatever can't be made (no article, one vowel) is replaced by another wrong letter."""
+    """Up to 3 wrong full forms («το νερό» style). Each one gets a random kind of mistake
+    among those the word allows — another article, the accent on a neighbouring vowel, a wrong
+    letter — so it can be three letters, or two accents and an article (2026-10-04; it was
+    one of each). Letters: same-sound mistakes first, typos only when those run out."""
     rng = rng or random.Random()
 
     def full(art: str | None, g: str) -> str:
         return f"{art} {g}" if art else g
 
-    out: list[str] = []
-    art = wrong_article(article, rng)
-    if art:
-        out.append(full(art, greek))
-    accent = wrong_accent(greek, rng)
-    if accent:
-        out.append(full(article, accent))
     believable, typos = wrong_letters(greek)
     rng.shuffle(believable)
     rng.shuffle(typos)
-    for v in believable + typos:  # typos only when nothing believable is left
-        if len(out) == 3:
-            break
-        if full(article, v) not in out:
-            out.append(full(article, v))
+    pools = {
+        "article": [
+            full(a, greek)
+            for a in rng.sample(wrong_articles(article), k=len(wrong_articles(article)))
+        ],
+        "accent": [
+            full(article, v) for v in rng.sample(wrong_accents(greek), k=len(wrong_accents(greek)))
+        ],
+        "letter": [full(article, v) for v in believable + typos],
+    }
+    right = full(article, greek)
+    out: list[str] = []
+    while len(out) < 3:
+        kinds = [k for k, pool in pools.items() if pool]
+        if not kinds:
+            break  # a very short word: the caller adds ordinary options
+        v = pools[rng.choice(kinds)].pop(0)
+        if v != right and v not in out:
+            out.append(v)
     return out
