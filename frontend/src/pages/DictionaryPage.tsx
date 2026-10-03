@@ -16,6 +16,7 @@ import { categoryLabel, useCategories } from '../lib/categories.ts'
 import SpeakButton from '../components/SpeakButton.tsx'
 import WordImage from '../components/WordImage.tsx'
 import WordForm from '../components/WordForm.tsx'
+import WordOrder from '../components/WordOrder.tsx'
 import { Button, Card, ErrorText, Spinner } from '../components/ui.tsx'
 import { DictionaryForm } from './DictionariesPage.tsx'
 
@@ -30,6 +31,9 @@ export default function DictionaryPage() {
   const [editing, setEditing] = useState<Editing>(null)
   const [categories, reloadCategories] = useCategories()
   const [categorizing, setCategorizing] = useState(false)
+  const [reordering, setReordering] = useState(false)
+  // Bumped when a failed save brings back the server's order: WordOrder starts over from it.
+  const [orderVersion, setOrderVersion] = useState(0)
 
   const load = useCallback(
     async () => setDict(await api<DictionaryDetail>(`/dictionaries/${id}`)),
@@ -43,6 +47,21 @@ export default function DictionaryPage() {
   if (!dict) return error ? <NotFound message={error} /> : <Spinner />
 
   const uncategorized = dict.words.filter((w) => !w.category_id).length
+
+  const saveOrder = async (words: Word[]) => {
+    setDict((d) => d && { ...d, words })
+    setError('')
+    try {
+      await api(`/dictionaries/${dict.id}/order`, {
+        method: 'PUT',
+        body: JSON.stringify({ word_ids: words.map((w) => w.id) }),
+      })
+    } catch (e) {
+      setError((e as Error).message)
+      await load()
+      setOrderVersion((v) => v + 1)
+    }
+  }
 
   const toggleActive = async () => {
     const active = !dict.is_active
@@ -131,6 +150,15 @@ export default function DictionaryPage() {
       {dict.can_edit && (
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setEditing({ kind: 'new' })}>+ Слово</Button>
+          {dict.words.length > 1 && (
+            <Button
+              variant="secondary"
+              onClick={() => setReordering(!reordering)}
+              aria-pressed={reordering}
+            >
+              {reordering ? 'Готово' : '↕ Порядок слов'}
+            </Button>
+          )}
           {uncategorized > 0 && (
             <Button variant="secondary" onClick={() => setCategorizing(true)}>
               Без категории: {uncategorized}
@@ -154,7 +182,15 @@ export default function DictionaryPage() {
 
       <ErrorText>{error}</ErrorText>
 
-      {dict.words.length === 0 ? (
+      {reordering ? (
+        <>
+          <p className="text-sm text-slate-500">
+            Держите ⋮⋮ и перетаскивайте слово или двигайте стрелками. Порядок сохраняется сразу — по
+            нему идёт «Порядок по словарю» в тренировках.
+          </p>
+          <WordOrder key={orderVersion} words={dict.words} onChange={saveOrder} />
+        </>
+      ) : dict.words.length === 0 ? (
         <Card className="text-center text-slate-500">В словаре пока нет слов.</Card>
       ) : (
         <ul className="divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">

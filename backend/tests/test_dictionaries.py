@@ -279,3 +279,26 @@ def test_wordlist_prompt(admin_client):
     assert prompt.startswith("Ты помогаешь") and "Список слов:" in prompt
     assert "bbox" not in prompt
     assert admin_client.get("/api/imports/prompt", params={"kind": "x"}).status_code == 422
+
+
+def test_reorder_words(admin_client, member):
+    d = _create_dict(admin_client)
+    ids = [
+        admin_client.post(f"/api/dictionaries/{d}/words", json={**WATER, "greek": g}).json()["id"]
+        for g in ("ένα", "δύο", "τρία")
+    ]
+    new = [ids[2], ids[0], ids[1]]
+    assert (
+        admin_client.put(f"/api/dictionaries/{d}/order", json={"word_ids": new}).status_code == 204
+    )
+    assert [w["id"] for w in admin_client.get(f"/api/dictionaries/{d}").json()["words"]] == new
+    # Not every word, a stranger's word, a member: refused.
+    assert (
+        admin_client.put(f"/api/dictionaries/{d}/order", json={"word_ids": new[:2]}).status_code
+        == 409
+    )
+    assert (
+        admin_client.put(f"/api/dictionaries/{d}/order", json={"word_ids": [*new, 999]}).status_code
+        == 409
+    )
+    assert member.put(f"/api/dictionaries/{d}/order", json={"word_ids": ids}).status_code == 403

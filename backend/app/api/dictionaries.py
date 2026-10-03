@@ -2,6 +2,7 @@ import re
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy import ColumnElement, delete, func, or_, select
 
 from app.auth import CurrentUser
@@ -228,6 +229,26 @@ def set_active(
         db.add(UserActiveDictionary(user_id=user.id, dictionary_id=dictionary_id))
     db.commit()
     return active_summary(db, user)
+
+
+class WordOrderIn(BaseModel):
+    word_ids: list[int]
+
+
+@router.put("/dictionaries/{dictionary_id}/order", status_code=status.HTTP_204_NO_CONTENT)
+def reorder_words(dictionary_id: int, body: WordOrderIn, user: CurrentUser, db: DbSession) -> None:
+    """New order of the words (all of them, each once) — dragged on the dictionary page.
+    «Порядок по словарю» in the trainers follows it."""
+    d = _get_editable(db, user, dictionary_id)
+    by_id = {w.id: w for w in d.words}
+    if sorted(body.word_ids) != sorted(by_id):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Список слов изменился — обновите страницу и попробуйте ещё раз",
+        )
+    for position, word_id in enumerate(body.word_ids):
+        by_id[word_id].position = position
+    db.commit()
 
 
 @router.get("/dictionaries/{dictionary_id}/export")
