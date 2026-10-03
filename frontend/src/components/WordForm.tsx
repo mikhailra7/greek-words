@@ -28,6 +28,8 @@ type EditableWord = Pick<
   | 'image_query'
 > & { category_id?: number | null }
 
+const MAX_TRANSLATIONS = 5 // the server's limit too (app/schemas/dictionary.py)
+
 export default function WordForm({
   word,
   onSubmit,
@@ -47,8 +49,11 @@ export default function WordForm({
   const [transcription, setTranscription] = useState(word?.transcription ?? '')
   const [translations, setTranslations] = useState<string[]>(() => {
     const t = word?.translations_ru ?? []
-    return [t[0] ?? '', t[1] ?? '', t[2] ?? '']
+    return Array.from({ length: MAX_TRANSLATIONS }, (_, i) => t[i] ?? '')
   })
+  // Three fields to start with; one more appears once those are filled, up to five.
+  const lastFilled = translations.findLastIndex((t) => t.trim())
+  const shownTranslations = Math.min(MAX_TRANSLATIONS, Math.max(3, lastFilled + 2))
   const [pos, setPos] = useState<string>(word?.part_of_speech ?? '')
   const [emoji, setEmoji] = useState(word?.image_emoji ?? '')
   const [imageQuery, setImageQuery] = useState(word?.image_query ?? '')
@@ -134,9 +139,9 @@ export default function WordForm({
           spellCheck={false}
         />
       </Field>
-      <Field label="Перевод" hint="От 1 до 3 вариантов.">
+      <Field label="Перевод" hint={`От 1 до ${MAX_TRANSLATIONS} вариантов.`}>
         <div className="space-y-2">
-          {translations.map((t, i) => (
+          {translations.slice(0, shownTranslations).map((t, i) => (
             <Input
               key={i}
               value={t}

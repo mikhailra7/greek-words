@@ -121,13 +121,17 @@ def test_word_validation(admin_client):
     d = _create_dict(admin_client)
     bad = [
         {**WATER, "translations_ru": []},
-        {**WATER, "translations_ru": ["a", "b", "c", "d"]},
+        {**WATER, "translations_ru": ["a", "b", "c", "d", "e", "f"]},  # 6 > 5
         {**WATER, "article": "der"},
         {**WATER, "greek": "   "},
         {**WATER, "part_of_speech": "banana"},
     ]
     for body in bad:
         assert admin_client.post(f"/api/dictionaries/{d}/words", json=body).status_code == 422, body
+    # Up to five translations are fine.
+    five = ["вода", "водичка", "водица", "влага", "жидкость"]
+    r = admin_client.post(f"/api/dictionaries/{d}/words", json={**WATER, "translations_ru": five})
+    assert r.status_code == 201 and r.json()["translations_ru"] == five
 
 
 def test_text_is_nfc_normalized_and_trimmed(admin_client):

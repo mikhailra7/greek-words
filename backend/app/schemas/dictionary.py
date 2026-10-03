@@ -24,11 +24,15 @@ Article = Literal[ARTICLES]  # type: ignore[valid-type]
 PartOfSpeech = Literal[PARTS_OF_SPEECH]  # type: ignore[valid-type]
 
 
+# 1..5 Russian translations per word (was 3 until 2026-10-04: Claude sometimes gives 4).
+MAX_TRANSLATIONS = 5
+
+
 def _clean_translations(values: list[str]) -> list[str]:
     cleaned = [clean_text(v) for v in values]
     cleaned = [v for v in dict.fromkeys(cleaned) if v]
-    if not 1 <= len(cleaned) <= 3:
-        raise ValueError("нужно от 1 до 3 переводов")
+    if not 1 <= len(cleaned) <= MAX_TRANSLATIONS:
+        raise ValueError(f"нужно от 1 до {MAX_TRANSLATIONS} переводов, а их {len(cleaned)}")
     if any(len(v) > 100 for v in cleaned):
         raise ValueError("перевод длиннее 100 символов")
     return cleaned

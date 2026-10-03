@@ -63,7 +63,7 @@ class Word(Base):
     article: Mapped[str | None] = mapped_column(String(4))
     greek: Mapped[str] = mapped_column(String(120))  # without the article
     transcription: Mapped[str] = mapped_column(String(160))  # Latin, with the article
-    translations_ru: Mapped[list[str]] = mapped_column(JSON)  # 1..3
+    translations_ru: Mapped[list[str]] = mapped_column(JSON)  # 1..5
     part_of_speech: Mapped[str | None] = mapped_column(String(16))
     example_gr: Mapped[str | None] = mapped_column(Text)
     example_ru: Mapped[str | None] = mapped_column(Text)
