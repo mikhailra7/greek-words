@@ -8,6 +8,7 @@ import {
   CountSlider,
   HideKnownToggle,
   playableCount,
+  trainingTotal,
   ResultScreen,
   SessionShell,
   Toggle,
@@ -24,6 +25,7 @@ type Settings = {
   direction: Direction
   showAnswer: boolean
   hideKnown: boolean
+  repeatKnown: boolean
   hard: boolean
   speakAnswer: boolean
 }
@@ -33,6 +35,7 @@ export default function TranslatePage() {
   const active = useActiveCount()
   const [settings, update] = useTrainerSettings<Settings>('translate', {
     hideKnown: true,
+    repeatKnown: false,
     count: 20,
     direction: 'ru_gr',
     showAnswer: true,
@@ -43,8 +46,8 @@ export default function TranslatePage() {
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
 
-  const total = active?.words ?? null
-  const playable = playableCount(active, settings?.hideKnown)
+  const total = trainingTotal(active, settings?.repeatKnown)
+  const playable = playableCount(active, settings?.hideKnown, settings?.repeatKnown)
   const count = settings && playable ? clampCount(settings.count, playable) : 1
 
   const start = async () => {
@@ -56,7 +59,7 @@ export default function TranslatePage() {
       setQuestions(
         await api<Question[]>(
           `/training/translate?count=${count}&direction=${settings.direction}` +
-            `&hide_known=${settings.hideKnown}&hard=${settings.hard}`,
+            `&hide_known=${settings.hideKnown}&known_only=${settings.repeatKnown}&hard=${settings.hard}`,
         ),
       )
     } catch (e) {
@@ -85,6 +88,9 @@ export default function TranslatePage() {
       <TrainerSetup
         title="Переведи слово"
         total={total}
+        repeatKnown={settings?.repeatKnown ?? false}
+        knownAll={active?.known_all ?? 0}
+        onRepeatKnown={(repeatKnown) => update({ repeatKnown })}
         playable={playable}
         ready={settings !== null}
         starting={starting}
@@ -141,11 +147,13 @@ export default function TranslatePage() {
                 onChange={(speakAnswer) => update({ speakAnswer })}
               />
             )}
-            <HideKnownToggle
-              checked={settings.hideKnown}
-              known={active?.known ?? 0}
-              onChange={(hideKnown) => update({ hideKnown })}
-            />
+            {!settings.repeatKnown && (
+              <HideKnownToggle
+                checked={settings.hideKnown}
+                known={active?.known ?? 0}
+                onChange={(hideKnown) => update({ hideKnown })}
+              />
+            )}
             {playable > 0 && (
               <CountSlider value={count} max={playable} onChange={(n) => update({ count: n })} />
             )}

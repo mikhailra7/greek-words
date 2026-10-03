@@ -10,6 +10,7 @@ import {
   fetchTrainingWords,
   HideKnownToggle,
   playableCount,
+  trainingTotal,
   SessionShell,
   Toggle,
   TrainerSetup,
@@ -19,12 +20,19 @@ import {
   WordPicture,
 } from '../trainers/common.tsx'
 
-type StudySettings = { count: number; speak: boolean; wordOnly: boolean; hideKnown: boolean }
+type StudySettings = {
+  count: number
+  speak: boolean
+  wordOnly: boolean
+  hideKnown: boolean
+  repeatKnown: boolean
+}
 
 export default function StudyPage() {
   const active = useActiveCount()
   const [settings, update] = useTrainerSettings<StudySettings>('study', {
     hideKnown: true,
+    repeatKnown: false,
     count: 20,
     speak: true,
     wordOnly: false,
@@ -33,8 +41,8 @@ export default function StudyPage() {
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
 
-  const total = active?.words ?? null
-  const playable = playableCount(active, settings?.hideKnown)
+  const total = trainingTotal(active, settings?.repeatKnown)
+  const playable = playableCount(active, settings?.hideKnown, settings?.repeatKnown)
   const count = settings && playable ? clampCount(settings.count, playable) : 1
 
   const start = async () => {
@@ -42,7 +50,13 @@ export default function StudyPage() {
     setStarting(true)
     setError('')
     try {
-      setWords(await fetchTrainingWords(count, settings?.hideKnown ?? true))
+      setWords(
+        await fetchTrainingWords(
+          count,
+          settings?.hideKnown ?? true,
+          settings?.repeatKnown ?? false,
+        ),
+      )
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -68,6 +82,9 @@ export default function StudyPage() {
       <TrainerSetup
         title="Изучение слов"
         total={total}
+        repeatKnown={settings?.repeatKnown ?? false}
+        knownAll={active?.known_all ?? 0}
+        onRepeatKnown={(repeatKnown) => update({ repeatKnown })}
         playable={playable}
         ready={settings !== null}
         starting={starting}
@@ -91,11 +108,13 @@ export default function StudyPage() {
                 перевод и произнесёт слово.
               </p>
             )}
-            <HideKnownToggle
-              checked={settings.hideKnown}
-              known={active?.known ?? 0}
-              onChange={(hideKnown) => update({ hideKnown })}
-            />
+            {!settings.repeatKnown && (
+              <HideKnownToggle
+                checked={settings.hideKnown}
+                known={active?.known ?? 0}
+                onChange={(hideKnown) => update({ hideKnown })}
+              />
+            )}
             {playable > 0 && (
               <CountSlider value={count} max={playable} onChange={(n) => update({ count: n })} />
             )}

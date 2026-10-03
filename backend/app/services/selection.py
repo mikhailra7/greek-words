@@ -51,6 +51,31 @@ def active_words(db: Session, user: User, hide_known: bool = False) -> list[Word
     return list(db.scalars(active_words_query(user, hide_known)))
 
 
+def known_words_query(user: User) -> Select:
+    """«Повторить выученные слова»: every visible word the user marked as known — the active
+    dictionaries and categories don't matter."""
+    return (
+        select(Word)
+        .join(Dictionary, Word.dictionary_id == Dictionary.id)
+        .where(_visible(user), Word.id.in_(_known_subquery(user)))
+    )
+
+
+def training_words(
+    db: Session, user: User, hide_known: bool = True, known_only: bool = False
+) -> list[Word]:
+    """The pool a trainer draws from: the active words (known ones hidden if asked), or with
+    `known_only` the user's known words from all dictionaries."""
+    if known_only:
+        return list(db.scalars(known_words_query(user)))
+    return active_words(db, user, hide_known)
+
+
+def known_word_count(db: Session, user: User) -> int:
+    q = known_words_query(user).subquery()
+    return db.scalar(select(func.count()).select_from(q)) or 0
+
+
 def visible_words(db: Session, user: User) -> list[Word]:
     """Every word the user can see, active or not — the pool for wrong answer options."""
     q = select(Word).join(Dictionary, Word.dictionary_id == Dictionary.id).where(_visible(user))

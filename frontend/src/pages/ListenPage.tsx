@@ -15,6 +15,7 @@ import {
   fetchTrainingWords,
   HideKnownToggle,
   playableCount,
+  trainingTotal,
   SessionShell,
   TrainerSetup,
   useActiveCount,
@@ -22,7 +23,7 @@ import {
   useTrainerSettings,
 } from '../trainers/common.tsx'
 
-type Settings = { count: number; pauseSec: number; hideKnown: boolean }
+type Settings = { count: number; pauseSec: number; hideKnown: boolean; repeatKnown: boolean }
 
 const DEFAULT_PAUSE_SEC = 3
 const MIN_PAUSE_SEC = 1
@@ -35,6 +36,7 @@ export default function ListenPage() {
   const active = useActiveCount()
   const [settings, update] = useTrainerSettings<Settings>('listen', {
     hideKnown: true,
+    repeatKnown: false,
     count: 20,
     pauseSec: DEFAULT_PAUSE_SEC,
   })
@@ -42,8 +44,8 @@ export default function ListenPage() {
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
 
-  const total = active?.words ?? null
-  const playable = playableCount(active, settings?.hideKnown)
+  const total = trainingTotal(active, settings?.repeatKnown)
+  const playable = playableCount(active, settings?.hideKnown, settings?.repeatKnown)
   const count = settings && playable ? clampCount(settings.count, playable) : 1
 
   const start = async () => {
@@ -51,7 +53,13 @@ export default function ListenPage() {
     setStarting(true)
     setError('')
     try {
-      setWords(await fetchTrainingWords(count, settings?.hideKnown ?? true))
+      setWords(
+        await fetchTrainingWords(
+          count,
+          settings?.hideKnown ?? true,
+          settings?.repeatKnown ?? false,
+        ),
+      )
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -76,6 +84,9 @@ export default function ListenPage() {
       <TrainerSetup
         title="Аудио повторение"
         total={total}
+        repeatKnown={settings?.repeatKnown ?? false}
+        knownAll={active?.known_all ?? 0}
+        onRepeatKnown={(repeatKnown) => update({ repeatKnown })}
         playable={playable}
         ready={settings !== null}
         starting={starting}
@@ -87,11 +98,13 @@ export default function ListenPage() {
               Слово по-гречески → пауза → по-русски → пауза → следующее. Пока идёт прослушивание,
               экран телефона не гаснет.
             </p>
-            <HideKnownToggle
-              checked={settings.hideKnown}
-              known={active?.known ?? 0}
-              onChange={(hideKnown) => update({ hideKnown })}
-            />
+            {!settings.repeatKnown && (
+              <HideKnownToggle
+                checked={settings.hideKnown}
+                known={active?.known ?? 0}
+                onChange={(hideKnown) => update({ hideKnown })}
+              />
+            )}
             {playable > 0 && (
               <CountSlider value={count} max={playable} onChange={(n) => update({ count: n })} />
             )}

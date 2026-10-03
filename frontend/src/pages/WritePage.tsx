@@ -8,6 +8,7 @@ import {
   fetchTrainingWords,
   HideKnownToggle,
   playableCount,
+  trainingTotal,
   ResultScreen,
   SessionShell,
   Toggle,
@@ -19,12 +20,19 @@ import {
 } from '../trainers/common.tsx'
 import WriteTask from '../trainers/WriteTask.tsx'
 
-type Settings = { count: number; hideKnown: boolean; speakAnswer: boolean; screenKeyboard: boolean }
+type Settings = {
+  count: number
+  hideKnown: boolean
+  repeatKnown: boolean
+  speakAnswer: boolean
+  screenKeyboard: boolean
+}
 export default function WritePage() {
   const active = useActiveCount()
   const [settings, update] = useTrainerSettings<Settings>('write', {
     count: 20,
     hideKnown: true,
+    repeatKnown: false,
     speakAnswer: false,
     screenKeyboard: false,
   })
@@ -32,8 +40,8 @@ export default function WritePage() {
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
 
-  const total = active?.words ?? null
-  const playable = playableCount(active, settings?.hideKnown)
+  const total = trainingTotal(active, settings?.repeatKnown)
+  const playable = playableCount(active, settings?.hideKnown, settings?.repeatKnown)
   const count = settings && playable ? clampCount(settings.count, playable) : 1
 
   const start = async () => {
@@ -41,7 +49,13 @@ export default function WritePage() {
     setStarting(true)
     setError('')
     try {
-      setWords(await fetchTrainingWords(count, settings?.hideKnown ?? true))
+      setWords(
+        await fetchTrainingWords(
+          count,
+          settings?.hideKnown ?? true,
+          settings?.repeatKnown ?? false,
+        ),
+      )
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -67,6 +81,9 @@ export default function WritePage() {
       <TrainerSetup
         title="Напиши"
         total={total}
+        repeatKnown={settings?.repeatKnown ?? false}
+        knownAll={active?.known_all ?? 0}
+        onRepeatKnown={(repeatKnown) => update({ repeatKnown })}
         playable={playable}
         ready={settings !== null}
         starting={starting}
@@ -92,11 +109,13 @@ export default function WritePage() {
               checked={settings.speakAnswer}
               onChange={(speakAnswer) => update({ speakAnswer })}
             />
-            <HideKnownToggle
-              checked={settings.hideKnown}
-              known={active?.known ?? 0}
-              onChange={(hideKnown) => update({ hideKnown })}
-            />
+            {!settings.repeatKnown && (
+              <HideKnownToggle
+                checked={settings.hideKnown}
+                known={active?.known ?? 0}
+                onChange={(hideKnown) => update({ hideKnown })}
+              />
+            )}
             {playable > 0 && (
               <CountSlider value={count} max={playable} onChange={(n) => update({ count: n })} />
             )}

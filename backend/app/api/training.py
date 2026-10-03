@@ -14,6 +14,7 @@ from app.schemas.dictionary import WordOut
 from app.services import tts
 from app.services.quiz import TaskType, build_hard_questions, build_questions, mix_types
 from app.services.selection import active_words, visible_words, with_known
+from app.services.selection import training_words as training_pool
 from app.services.spelling import check
 
 router = APIRouter(tags=["training"])
@@ -48,10 +49,12 @@ def training_words(
     db: DbSession,
     count: Annotated[int, Query(ge=1, le=2000)] = 20,
     hide_known: bool = True,
+    known_only: bool = False,
 ) -> list[WordOut]:
     """`count` random words from the active dictionaries/categories, no repeats, new order
-    every call; without the user's known words unless `hide_known=false`."""
-    words = active_words(db, user, hide_known)
+    every call; without the user's known words unless `hide_known=false`. `known_only`:
+    from the user's known words in all dictionaries instead («Повторить выученные слова»)."""
+    words = training_pool(db, user, hide_known, known_only)
     picked = random.sample(words, min(count, len(words)))
     _prepare(db, user, picked, ("el", "ru"))  # «Аудио повторение» also reads Russian
     return with_known(db, user, picked, WordOut)
@@ -74,12 +77,13 @@ def translate_questions(
     direction: Literal["ru_gr", "gr_ru"] = "ru_gr",
     count: Annotated[int, Query(ge=1, le=2000)] = 20,
     hide_known: bool = True,
+    known_only: bool = False,
     hard: bool = False,
 ) -> list[QuestionOut]:
     # Questions: active words (without known ones). Wrong options: any visible dictionary,
     # same part of speech first (quiz.distractors) — more choice than the current lesson.
     pool = visible_words(db, user)
-    candidates = active_words(db, user, hide_known)
+    candidates = training_pool(db, user, hide_known, known_only)
     picked = random.sample(candidates, min(count, len(candidates)))
     _prepare(db, user, picked, ("el",))
     return [
@@ -107,11 +111,12 @@ def mix_tasks(
     db: DbSession,
     count: Annotated[int, Query(ge=1, le=2000)] = 20,
     hide_known: bool = True,
+    known_only: bool = False,
 ) -> list[MixTaskOut]:
     """«Микс заданий»: each picked word gets one task — RU→GR choice, GR→RU choice or
     «Напиши»; the three types are balanced and shuffled. Options as in «Переведи»."""
     pool = visible_words(db, user)
-    candidates = active_words(db, user, hide_known)
+    candidates = training_pool(db, user, hide_known, known_only)
     picked = random.sample(candidates, min(count, len(candidates)))
     _prepare(db, user, picked, ("el",))
     tasks = []

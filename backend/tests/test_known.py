@@ -91,3 +91,38 @@ def test_known_needs_a_visible_word(admin_client, member):
     admin_client.patch(f"/api/dictionaries/{d}", json={"is_published": False})
     assert member.put(f"/api/words/{water}/known", json={"known": True}).status_code == 404
     assert member.post(f"/api/dictionaries/{d}/known/reset").status_code == 404
+
+
+def test_repeat_known_words_from_all_dictionaries(admin_client):
+    """«Повторить выученные слова»: the known words of every dictionary, active or not."""
+    a = admin_client.post("/api/dictionaries", json={"title": "A"}).json()["id"]
+    b = admin_client.post("/api/dictionaries", json={"title": "B"}).json()["id"]
+    words = {}
+    for d, greek, ru in [
+        (a, "νερό", "вода"),
+        (a, "ψωμί", "хлеб"),
+        (b, "γάλα", "молоко"),
+        (b, "τυρί", "сыр"),
+    ]:
+        r = admin_client.post(
+            f"/api/dictionaries/{d}/words", json={"greek": greek, "translations_ru": [ru]}
+        )
+        words[greek] = r.json()["id"]
+    admin_client.put(f"/api/dictionaries/{a}/active", json={"active": True})  # only A is active
+    for greek in ("ψωμί", "γάλα"):  # one known in A, one in the inactive B
+        assert admin_client.put(
+            f"/api/words/{words[greek]}/known", json={"known": True}
+        ).status_code in (200, 204)
+
+    summary = admin_client.get("/api/words/active/count").json()
+    assert summary["words"] == 2 and summary["known"] == 1 and summary["known_all"] == 2
+
+    got = admin_client.get("/api/training/words", params={"count": 10, "known_only": True}).json()
+    assert sorted(w["greek"] for w in got) == ["γάλα", "ψωμί"]
+    q = admin_client.get("/api/training/translate", params={"count": 10, "known_only": True}).json()
+    assert sorted(x["word"]["greek"] for x in q) == ["γάλα", "ψωμί"]
+    m = admin_client.get("/api/training/mix", params={"count": 10, "known_only": True}).json()
+    assert sorted(x["word"]["greek"] for x in m) == ["γάλα", "ψωμί"]
+    # Off: the active words as before, known ones hidden by default.
+    plain = admin_client.get("/api/training/words", params={"count": 10}).json()
+    assert [w["greek"] for w in plain] == ["νερό"]

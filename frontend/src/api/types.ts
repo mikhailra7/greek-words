@@ -51,6 +51,7 @@ export type ActiveSummary = {
   categories: number
   words: number
   known: number // of `words`, marked as known by this user
+  known_all: number // known words in every visible dictionary («Повторить выученные слова»)
 }
 
 export type Category = {

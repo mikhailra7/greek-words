@@ -89,7 +89,7 @@ def _active_ids(db: DbSession, user: User) -> set[int]:
 
 
 def active_summary(db: DbSession, user: User) -> ActiveSummary:
-    from app.services.selection import active_word_count
+    from app.services.selection import active_word_count, known_word_count
 
     dicts = db.scalar(
         select(func.count(Dictionary.id))
@@ -107,6 +107,7 @@ def active_summary(db: DbSession, user: User) -> ActiveSummary:
         categories=cats or 0,
         words=total,
         known=total - active_word_count(db, user, hide_known=True),
+        known_all=known_word_count(db, user),
     )
 
 

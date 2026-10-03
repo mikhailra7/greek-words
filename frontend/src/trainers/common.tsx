@@ -57,7 +57,7 @@ export function useActiveCount(): ActiveSummary | null {
   useEffect(() => {
     api<ActiveSummary>('/words/active/count')
       .then(setSummary)
-      .catch(() => setSummary({ dictionaries: 0, categories: 0, words: 0, known: 0 }))
+      .catch(() => setSummary({ dictionaries: 0, categories: 0, words: 0, known: 0, known_all: 0 }))
   }, [])
   return summary
 }
@@ -75,13 +75,50 @@ export function sessionKey(batch: object): string {
   return key
 }
 
-export async function fetchTrainingWords(count: number, hideKnown: boolean): Promise<Word[]> {
-  return api<Word[]>(`/training/words?count=${count}&hide_known=${hideKnown}`)
+export async function fetchTrainingWords(
+  count: number,
+  hideKnown: boolean,
+  repeatKnown = false,
+): Promise<Word[]> {
+  return api<Word[]>(
+    `/training/words?count=${count}&hide_known=${hideKnown}&known_only=${repeatKnown}`,
+  )
 }
 
-/** How many words an exercise can use right now (known ones excluded when hidden). */
-export const playableCount = (a: ActiveSummary | null, hideKnown: boolean | undefined) =>
-  a ? a.words - (hideKnown ? a.known : 0) : 0
+/** How many words an exercise can use right now: the active ones (known ones excluded when
+ * hidden), or with «Повторить выученные слова» the known ones from all dictionaries. */
+export const playableCount = (
+  a: ActiveSummary | null,
+  hideKnown: boolean | undefined,
+  repeatKnown?: boolean,
+) => (!a ? 0 : repeatKnown ? a.known_all : a.words - (hideKnown ? a.known : 0))
+
+/** What the setup screen counts from: the active words, or all the known ones. */
+export const trainingTotal = (a: ActiveSummary | null, repeatKnown: boolean | undefined) =>
+  a ? (repeatKnown ? a.known_all : a.words) : null
+
+// «Повторить выученные слова» — in every exercise; replaces the active dictionaries and
+// categories with the words marked «Я знаю это слово» in all dictionaries.
+function RepeatKnownToggle({
+  checked,
+  knownAll,
+  onChange,
+}: {
+  checked: boolean
+  knownAll: number
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <div>
+      <Toggle label="Повторить выученные слова" checked={checked} onChange={onChange} />
+      <p className="mt-1 ml-9 text-sm text-slate-500">
+        {checked
+          ? `Только слова с отметкой «Я знаю это слово» из всех словарей: ${knownAll}. Отмеченные словари и категории не важны.`
+          : `Слова с отметкой «Я знаю это слово» из всех словарей (${knownAll}) вместо отмеченных словарей.`}
+      </p>
+    </div>
+  )
+}
 
 // «Скрыть выученные слова» — the same toggle in all four exercises.
 export function HideKnownToggle({
@@ -176,24 +213,47 @@ export function TrainerSetup({
   ready,
   starting,
   onStart,
+  repeatKnown = false,
+  knownAll = 0,
+  onRepeatKnown,
   children,
 }: {
   title: string
-  total: number | null // words in the active dictionaries/categories
+  total: number | null // words in the active dictionaries/categories (or all known ones)
   playable: number // of them, usable with the current settings (known ones may be hidden)
   ready: boolean
   starting?: boolean
   onStart: () => void
+  repeatKnown?: boolean
+  knownAll?: number
+  onRepeatKnown?: (v: boolean) => void
   children: ReactNode
 }) {
   if (total === null || !ready) return <Spinner />
+  const repeatToggle = onRepeatKnown && (repeatKnown || knownAll > 0) && (
+    <RepeatKnownToggle checked={repeatKnown} knownAll={knownAll} onChange={onRepeatKnown} />
+  )
   return (
     <section className="mx-auto max-w-md space-y-5">
       <h1 className="text-2xl font-semibold">{title}</h1>
       {total === 0 ? (
         <Card className="space-y-3 text-center">
-          <p>В тренировке пока нет слов.</p>
-          <p className="text-sm text-slate-500">Отметьте словари галочками в разделе «Словари».</p>
+          {repeatKnown ? (
+            <>
+              <p>Выученных слов пока нет.</p>
+              <p className="text-sm text-slate-500">
+                Отмечайте «Я знаю это слово» в «Изучении» или в словаре.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>В тренировке пока нет слов.</p>
+              <p className="text-sm text-slate-500">
+                Отметьте словари галочками в разделе «Словари».
+              </p>
+            </>
+          )}
+          {repeatToggle && <div className="text-left">{repeatToggle}</div>}
           <Link
             to="/dictionaries"
             className="inline-block rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white"
@@ -204,6 +264,7 @@ export function TrainerSetup({
       ) : (
         <>
           <Card className="space-y-6 p-5">
+            {repeatToggle}
             {children}
             {playable === 0 && (
               <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">

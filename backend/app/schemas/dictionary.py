@@ -115,6 +115,7 @@ class ActiveSummary(BaseModel):
     categories: int = 0
     words: int
     known: int = 0  # of `words`, how many the user marked as known
+    known_all: int = 0  # known words in every visible dictionary («Повторить выученные слова»)
 
 
 class DictionaryListOut(BaseModel):
