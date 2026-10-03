@@ -23,6 +23,8 @@ export default function WriteTask({
   word,
   speakAnswer = false,
   screenKeyboard = false,
+  hideMistakes = false,
+  taskKey,
   onAnswered,
   onNext,
 }: {
@@ -33,6 +35,11 @@ export default function WriteTask({
   screenKeyboard?: boolean
   /** «Воспроизвести ответ»: say the Greek word when the verdict shows the right answer. */
   speakAnswer?: boolean
+  /** «Добивать до правильного ответа»: a wrong answer shows only «Есть ошибка» — no right
+   * spelling, no hints; «Не знаю» still shows it. */
+  hideMistakes?: boolean
+  /** Changes for every new task (default: the word) — the same word can come again. */
+  taskKey?: string
   onAnswered: (mistake: Mistake | null) => void
   onNext: () => void
 }) {
@@ -40,15 +47,18 @@ export default function WriteTask({
   const [result, setResult] = useState<CheckResult | null>(null)
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState('')
+  const [gaveUp, setGaveUp] = useState(false)
   const input = useRef<HTMLInputElement>(null)
 
-  // New word: clear the previous answer and keep the keyboard up.
-  const [shownId, setShownId] = useState(word.id)
-  if (shownId !== word.id) {
-    setShownId(word.id)
+  // New task: clear the previous answer and keep the keyboard up.
+  const key = taskKey ?? String(word.id)
+  const [shownKey, setShownKey] = useState(key)
+  if (shownKey !== key) {
+    setShownKey(key)
     setAnswer('')
     setResult(null)
     setError('')
+    setGaveUp(false)
   }
   useEffect(() => {
     input.current?.focus()
@@ -82,6 +92,7 @@ export default function WriteTask({
   // «Не знаю» = an empty answer: logged as wrong, the verdict shows the right one.
   const dontKnow = () => {
     setAnswer('')
+    setGaveUp(true)
     check('')
   }
 
@@ -96,7 +107,9 @@ export default function WriteTask({
       })
       setResult(r)
       // After the server's answer, outside the tap: fine, «Начать» has unlocked the sound.
-      if (speakAnswer) speak(word.audio_url, word.full_greek)
+      // A hidden mistake stays silent: the word would give the answer away.
+      const shown = r.correct || !hideMistakes || given === ''
+      if (speakAnswer && shown) speak(word.audio_url, word.full_greek)
       onAnswered(
         r.correct
           ? null
@@ -193,7 +206,17 @@ export default function WriteTask({
       )}
       <ErrorText>{error}</ErrorText>
 
-      {result ? (
+      {result && hideMistakes && !result.correct && !gaveUp ? (
+        <div className="space-y-3 rounded-2xl bg-white p-4 dark:bg-slate-900" role="status">
+          <p className="text-lg font-semibold text-red-700 dark:text-red-400">Есть ошибка</p>
+          <p className="text-sm text-slate-500">
+            Где — не подсказываем: это слово будет ещё раз в следующем круге.
+          </p>
+          <Button onClick={onNext} className="w-full py-3 text-base">
+            Далее
+          </Button>
+        </div>
+      ) : result ? (
         <Verdict result={result} word={word} onNext={onNext} />
       ) : (
         <GreekKeyboard

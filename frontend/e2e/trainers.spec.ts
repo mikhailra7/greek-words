@@ -467,3 +467,54 @@ test('«Порядок по словарю»: «Изучение» goes as in th
   await listenOrder.uncheck()
   await page.waitForTimeout(700)
 })
+
+test('write: «Добивать до правильного ответа» — hidden mistakes, rounds until all right', async ({
+  page,
+}) => {
+  await page.goto('/write')
+  const untilRight = page.getByLabel('Добивать до правильного ответа')
+  await untilRight.check()
+  await setSlider(page, 2)
+  await page.getByRole('button', { name: 'Начать' }).click()
+  const input = page.getByLabel('Ответ по-гречески')
+  const prompt = async () => findWord((await page.locator('article p').textContent())!.trim())
+
+  // Round 1: a mistake shows only «Есть ошибка» — no right spelling, no hint.
+  await expect(page.getByText('1 / 2')).toBeVisible()
+  const first = await prompt()
+  await input.fill('λάθος')
+  await input.press('Enter')
+  await expect(page.getByText('Есть ошибка')).toBeVisible()
+  await expect(page.getByText(fullGreek(first))).toHaveCount(0)
+  await expect(page.getByText('Правильно', { exact: true })).toHaveCount(0)
+  await input.press('Enter') // «Далее» (the ✓ next to the field turns into it too)
+  await expect(page.getByText('2 / 2')).toBeVisible()
+  await input.fill(fullGreek(await prompt()))
+  await input.press('Enter')
+  await expect(page.getByText('Верно!')).toBeVisible()
+  await input.press('Enter')
+
+  // Round 2: only the word with the mistake. «Не знаю» shows it — and keeps it for round 3.
+  await expect(page.getByText('Круг 2 · 1 / 1')).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('Круг 2: слова, где были ошибки')
+  expect(await prompt()).toEqual(first)
+  await page.getByRole('button', { name: 'Не знаю' }).click()
+  await expect(page.getByText(fullGreek(first)).first()).toBeVisible()
+  await input.press('Enter') // «Далее» (the ✓ next to the field turns into it too)
+
+  await expect(page.getByText('Круг 3 · 1 / 1')).toBeVisible()
+  await expect(input).toHaveValue('') // the same word again, a clean field
+  await input.fill(fullGreek(first))
+  await input.press('Enter')
+  await expect(page.getByText('Верно!')).toBeVisible()
+  await input.press('Enter')
+
+  await expect(page.getByText('Все 2 слова написаны верно')).toBeVisible()
+  await expect(page.getByText('Кругов: 3')).toBeVisible()
+  await expect(page.getByRole('listitem').filter({ hasText: fullGreek(first) })).toContainText(
+    'ошибок: 2',
+  )
+  await page.getByRole('button', { name: 'В меню' }).click()
+  await untilRight.uncheck() // leave the shared user as it was
+  await page.waitForTimeout(700)
+})
