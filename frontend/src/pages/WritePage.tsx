@@ -127,9 +127,8 @@ export default function WritePage() {
                 onChange={(untilRight) => update({ untilRight })}
               />
               <p className="mt-1 pl-9 text-sm text-slate-500">
-                Круг за кругом: при ошибке видно только «Есть ошибка», без правильного ответа; слова
-                с ошибками идут ещё раз, пока все не будут написаны верно. «Не знаю» показывает
-                ответ, но слово остаётся на следующий круг.
+                Круг за кругом: слова с ошибками (и с «Не знаю») идут ещё раз, пока все не будут
+                написаны верно.
               </p>
             </div>
             <Toggle
@@ -224,7 +223,8 @@ const shuffle = <T,>(items: T[]): T[] => {
 }
 
 // «Добивать до правильного ответа»: the words once; then, round after round, the ones with a
-// mistake (shuffled) — until a round has none. Mistakes aren't shown, only «Есть ошибка».
+// mistake (shuffled) — until a round has none. The verdict is the usual one, with the right
+// answer (hiding it was tried on 2026-10-04 and dropped the next day).
 function UntilRightSession({
   words,
   speakAnswer,
@@ -328,7 +328,6 @@ function UntilRightSession({
         <WriteTask
           word={queue[index]}
           taskKey={`${round}:${index}`}
-          hideMistakes
           speakAnswer={speakAnswer}
           screenKeyboard={screenKeyboard}
           onAnswered={answered}

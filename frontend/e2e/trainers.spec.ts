@@ -468,7 +468,7 @@ test('«Порядок по словарю»: «Изучение» goes as in th
   await page.waitForTimeout(700)
 })
 
-test('write: «Добивать до правильного ответа» — hidden mistakes, rounds until all right', async ({
+test('write: «Добивать до правильного ответа» — rounds until every word is right', async ({
   page,
 }) => {
   await page.goto('/write')
@@ -479,14 +479,13 @@ test('write: «Добивать до правильного ответа» — h
   const input = page.getByLabel('Ответ по-гречески')
   const prompt = async () => findWord((await page.locator('article p').textContent())!.trim())
 
-  // Round 1: a mistake shows only «Есть ошибка» — no right spelling, no hint.
+  // Round 1: a mistake shows the usual verdict, with the right spelling.
   await expect(page.getByText('1 / 2')).toBeVisible()
   const first = await prompt()
   await input.fill('λάθος')
   await input.press('Enter')
-  await expect(page.getByText('Есть ошибка')).toBeVisible()
-  await expect(page.getByText(fullGreek(first))).toHaveCount(0)
-  await expect(page.getByText('Правильно', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Ваш ответ')).toBeVisible()
+  await expect(page.getByText('Правильно', { exact: true })).toBeVisible()
   await input.press('Enter') // «Далее» (the ✓ next to the field turns into it too)
   await expect(page.getByText('2 / 2')).toBeVisible()
   await input.fill(fullGreek(await prompt()))
