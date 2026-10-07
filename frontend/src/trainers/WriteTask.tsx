@@ -9,6 +9,7 @@ import GreekKeyboard from './GreekKeyboard.tsx'
 
 type Segment = { text: string; ok: boolean }
 type CheckResult = {
+  answer_id: number
   correct: boolean
   expected: string
   hint: string | null
@@ -25,6 +26,7 @@ export default function WriteTask({
   screenKeyboard = false,
   taskKey,
   onAnswered,
+  onAccepted,
   onNext,
 }: {
   word: Word
@@ -37,12 +39,15 @@ export default function WriteTask({
   /** Changes for every new task (default: the word) — the same word can come again. */
   taskKey?: string
   onAnswered: (mistake: Mistake | null) => void
+  /** «Я ответил правильно»: the learner overruled the check — the session drops the mistake. */
+  onAccepted?: (word: Word) => void
   onNext: () => void
 }) {
   const [answer, setAnswer] = useState('')
   const [result, setResult] = useState<CheckResult | null>(null)
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState('')
+  const [accepted, setAccepted] = useState(false)
   const input = useRef<HTMLInputElement>(null)
 
   // New task: clear the previous answer and keep the keyboard up.
@@ -53,6 +58,7 @@ export default function WriteTask({
     setAnswer('')
     setResult(null)
     setError('')
+    setAccepted(false)
   }
   useEffect(() => {
     input.current?.focus()
@@ -87,6 +93,20 @@ export default function WriteTask({
   const dontKnow = () => {
     setAnswer('')
     check('')
+  }
+
+  // «Я ответил правильно»: counts as right in the word's statistics and in this exercise.
+  // The exercise knows at once (a quick «Далее» mustn't beat the request); the statistics
+  // follow — if the server refuses, the error is shown.
+  const accept = async () => {
+    if (!result) return
+    setAccepted(true)
+    onAccepted?.(word)
+    try {
+      await api(`/training/answers/${result.answer_id}/accept`, { method: 'POST' })
+    } catch (err) {
+      setError(`Не удалось засчитать в статистике: ${(err as Error).message}`)
+    }
   }
 
   const check = async (given: string) => {
@@ -198,7 +218,13 @@ export default function WriteTask({
       <ErrorText>{error}</ErrorText>
 
       {result ? (
-        <Verdict result={result} word={word} onNext={onNext} />
+        <Verdict
+          result={result}
+          word={word}
+          accepted={accepted}
+          onAccept={onAccepted ? accept : undefined}
+          onNext={onNext}
+        />
       ) : (
         <GreekKeyboard
           onInput={(text) => edit(text)}
@@ -214,18 +240,29 @@ export default function WriteTask({
 function Verdict({
   result,
   word,
+  accepted,
+  onAccept,
   onNext,
 }: {
   result: CheckResult
   word: Word
+  accepted: boolean
+  onAccept?: () => void
   onNext: () => void
 }) {
+  // «Не знаю» (nothing typed) can't be counted as right.
+  const canAccept = !result.correct && !accepted && result.given_segments.length > 0
   return (
     <div className="space-y-3 rounded-2xl bg-white p-4 dark:bg-slate-900">
       {result.correct ? (
         <p className="text-lg font-semibold text-green-700 dark:text-green-400">Верно!</p>
       ) : (
         <>
+          {accepted && (
+            <p className="text-lg font-semibold text-green-700 dark:text-green-400" role="status">
+              Засчитано как верно ✓
+            </p>
+          )}
           <Row label="Ваш ответ">
             {result.given_segments.length === 0 && (
               <span lang="ru" className="text-base text-slate-500 italic">
@@ -259,6 +296,11 @@ function Verdict({
           </Row>
           {result.hint && (
             <p className="text-sm text-amber-700 dark:text-amber-400">{result.hint}</p>
+          )}
+          {canAccept && onAccept && (
+            <Button variant="secondary" onClick={onAccept} className="w-full">
+              Я ответил правильно
+            </Button>
           )}
         </>
       )}

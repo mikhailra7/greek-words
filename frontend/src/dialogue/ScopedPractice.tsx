@@ -14,6 +14,8 @@ export type TaskProps = {
   line: DialogueLine
   /** The line went wrong (counted once per line). */
   onMistake: () => void
+  /** «Я ответил правильно»: take the mistake back. */
+  onRight: () => void
   /** Play the line in its role's voice (call it inside a tap when you can — iOS). */
   play: () => void
   onNext: () => void
@@ -149,6 +151,12 @@ export default function ScopedPractice({
                 line,
                 play,
                 onMistake: () => setMissed((s) => new Set(s).add(line.id)),
+                onRight: () =>
+                  setMissed((s) => {
+                    const next = new Set(s)
+                    next.delete(line.id)
+                    return next
+                  }),
                 onNext: () => setIndex((n) => n + 1),
               })}
             </Bubble>

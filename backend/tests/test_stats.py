@@ -44,3 +44,29 @@ def test_last_ten_answers_per_user(admin_client, make_client):
     assert in_cat[0]["answers"] == {"right": 7, "total": 10}
     theirs = {w["greek"]: w["answers"] for w in other.get(f"/api/dictionaries/{d}").json()["words"]}
     assert theirs["δύο"] == {"right": 0, "total": 5} and theirs["ένα"] is None
+
+
+def test_accept_typed_answer_counts_it_right(admin_client, make_client):
+    d = admin_client.post("/api/dictionaries", json={"title": "А"}).json()["id"]
+    w = admin_client.post(
+        f"/api/dictionaries/{d}/words",
+        json={"article": "το", "greek": "νερό", "translations_ru": ["вода"]},
+    ).json()["id"]
+    wrong = admin_client.post(
+        "/api/training/write/check", json={"word_id": w, "answer": "το νερο"}
+    ).json()
+    assert wrong["correct"] is False and wrong["answer_id"] > 0
+    stats = lambda: admin_client.get(f"/api/dictionaries/{d}").json()["words"][0]["answers"]  # noqa: E731
+    assert stats() == {"right": 0, "total": 1}
+
+    assert (
+        admin_client.post(f"/api/training/answers/{wrong['answer_id']}/accept").status_code == 204
+    )
+    assert stats() == {"right": 1, "total": 1}
+
+    # «Не знаю» (empty) can't be accepted; nor somebody else's answer.
+    idk = admin_client.post("/api/training/write/check", json={"word_id": w, "answer": ""}).json()
+    assert admin_client.post(f"/api/training/answers/{idk['answer_id']}/accept").status_code == 400
+    other = make_client()
+    assert register(other, "anna", create_invite(admin_client)).status_code == 201
+    assert other.post(f"/api/training/answers/{wrong['answer_id']}/accept").status_code == 404

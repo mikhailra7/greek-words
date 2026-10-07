@@ -40,11 +40,12 @@ export default function TypeMode({
         </div>
       }
       intro="По переводу наберите реплику по-гречески. Ударения, заглавные буквы и знаки препинания не важны — важны слова и их порядок."
-      task={({ line, onMistake, play, onNext }) => (
+      task={({ line, onMistake, onRight, play, onNext }) => (
         <TypeTask
           line={line}
           screenKeyboard={screenKeyboard}
           onMistake={onMistake}
+          onRight={onRight}
           play={play}
           onNext={onNext}
         />
@@ -57,18 +58,21 @@ function TypeTask({
   line,
   screenKeyboard,
   onMistake,
+  onRight,
   play,
   onNext,
 }: {
   line: DialogueLine
   screenKeyboard: boolean
   onMistake: () => void
+  onRight: () => void
   play: () => void
   onNext: () => void
 }) {
   const [answer, setAnswer] = useState('')
   const [result, setResult] = useState<LooseCheck | null>(null)
   const [gaveUp, setGaveUp] = useState(false)
+  const [accepted, setAccepted] = useState(false)
   const field = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -149,12 +153,18 @@ function TypeTask({
         <div className="space-y-2" role="status">
           <p
             className={`font-medium ${
-              result.correct && !gaveUp
+              (result.correct || accepted) && !gaveUp
                 ? 'text-green-700 dark:text-green-400'
                 : 'text-red-700 dark:text-red-400'
             }`}
           >
-            {gaveUp ? 'Правильно так:' : result.correct ? 'Верно!' : 'Есть отличия'}
+            {gaveUp
+              ? 'Правильно так:'
+              : result.correct
+                ? 'Верно!'
+                : accepted
+                  ? 'Засчитано как верно ✓'
+                  : 'Есть отличия'}
           </p>
           {!gaveUp && !result.correct && (
             <p lang="el" className="text-lg" aria-label="Ваш ответ">
@@ -188,6 +198,18 @@ function TypeTask({
             <p className="text-sm text-amber-700 dark:text-amber-400">
               Похоже, введены латинские буквы — переключите клавиатуру на греческую.
             </p>
+          )}
+          {!result.correct && !gaveUp && !accepted && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setAccepted(true)
+                onRight()
+              }}
+              className="mr-2"
+            >
+              Я ответил правильно
+            </Button>
           )}
           {/* Focused, so Enter after the check goes on. */}
           <Button autoFocus onClick={onNext}>

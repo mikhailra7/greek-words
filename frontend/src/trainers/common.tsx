@@ -207,6 +207,12 @@ export function CountSlider({
   )
 }
 
+/** Without the last item matching (a mistake taken back by «Я ответил правильно»). */
+export function withoutLast<T>(items: T[], match: (item: T) => boolean): T[] {
+  const i = items.findLastIndex(match)
+  return i < 0 ? items : [...items.slice(0, i), ...items.slice(i + 1)]
+}
+
 export function Toggle({
   label,
   checked,

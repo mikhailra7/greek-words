@@ -517,3 +517,70 @@ test('write: «Добивать до правильного ответа» — r
   await untilRight.uncheck() // leave the shared user as it was
   await page.waitForTimeout(700)
 })
+
+test('write: «Я ответил правильно» counts a wrong answer as right — in the result and rounds', async ({
+  page,
+}) => {
+  await page.goto('/write')
+  await setSlider(page, 1)
+  await page.getByRole('button', { name: 'Начать' }).click()
+  const input = page.getByLabel('Ответ по-гречески')
+  const word = findWord((await page.locator('article p').textContent())!.trim())
+  await input.fill(fullGreek(word).normalize('NFD').replace(/́/g, '')) // no accent
+  await input.press('Enter')
+  await page.getByRole('button', { name: 'Я ответил правильно' }).click()
+  await expect(page.getByText('Засчитано как верно ✓')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Я ответил правильно' })).toHaveCount(0)
+  await input.press('Enter')
+  await expect(page.getByText('Правильно 1 из 1')).toBeVisible()
+
+  // «Добивать до правильного ответа»: an accepted word doesn't come back in round 2.
+  await page.getByRole('button', { name: 'В меню' }).click()
+  const untilRight = page.getByLabel('Добивать до правильного ответа')
+  await untilRight.check()
+  await page.getByRole('button', { name: 'Начать' }).click()
+  const again = findWord((await page.locator('article p').textContent())!.trim())
+  await input.fill(fullGreek(again).normalize('NFD').replace(/́/g, ''))
+  await input.press('Enter')
+  await page.getByRole('button', { name: 'Я ответил правильно' }).click()
+  await input.press('Enter')
+  await expect(page.getByText('Кругов: 1')).toBeVisible()
+  await page.getByRole('button', { name: 'В меню' }).click()
+  await untilRight.uncheck() // leave the shared user as it was
+  await page.waitForTimeout(700)
+})
+
+test('write: the site keyboard — ⇧ for one capital, ⇪ for all, punctuation', async ({ page }) => {
+  await page.goto('/write')
+  const screen = page.getByLabel('Экранная клавиатура')
+  await screen.check()
+  await setSlider(page, 1)
+  await page.getByRole('button', { name: 'Начать' }).click()
+  const keyboard = page.getByRole('group', { name: 'Греческая клавиатура' })
+  const key = (k: string) => keyboard.getByRole('button', { name: k, exact: true }).click()
+  const input = page.getByLabel('Ответ по-гречески')
+
+  await key('Заглавные')
+  await expect(keyboard.getByRole('button', { name: 'Τ', exact: true })).toBeVisible() // capitals shown
+  await key('Τ')
+  await key('ο') // the shift was for one letter only
+  await key('Пробел')
+  await key('Заглавные')
+  await key('Заглавные') // twice: ⇪
+  await key('Ν')
+  await key('Ε')
+  await key('Ударение')
+  await key('Ό') // an accented capital
+  await key('Заглавные') // off
+  await key('Вопросительный знак (;)')
+  await key('Запятая')
+  await key('Апостроф')
+  await expect(input).toHaveValue("Το ΝΕΌ;,'")
+
+  await page.getByRole('button', { name: 'Не знаю' }).click()
+  await expect(page.getByText('Ваш ответ')).toBeVisible()
+  await input.press('Enter')
+  await page.getByRole('button', { name: 'В меню' }).click()
+  await screen.uncheck() // leave the shared user as it was
+  await page.waitForTimeout(700)
+})

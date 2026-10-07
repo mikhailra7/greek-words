@@ -16,6 +16,7 @@ import {
   useActiveCount,
   sessionKey,
   useTrainerSettings,
+  withoutLast,
   type Mistake,
 } from '../trainers/common.tsx'
 import WriteTask from '../trainers/WriteTask.tsx'
@@ -173,6 +174,10 @@ function WriteSession({
 
   const next = useCallback(() => setIndex((i) => i + 1), [])
   const answered = useCallback((m: Mistake | null) => m && setMistakes((all) => [...all, m]), [])
+  const accepted = useCallback(
+    (w: Word) => setMistakes((all) => withoutLast(all, (m) => m.word.id === w.id)),
+    [],
+  )
 
   const exit = useCallback(() => {
     if (done || confirm('Закончить тренировку?')) onExit()
@@ -206,6 +211,7 @@ function WriteSession({
           speakAnswer={speakAnswer}
           screenKeyboard={screenKeyboard}
           onAnswered={answered}
+          onAccepted={accepted}
           onNext={next}
         />
       </div>
@@ -249,6 +255,11 @@ function UntilRightSession({
     if (!m) return
     setWrong((w) => [...w, m.word])
     setErrors((e) => ({ ...e, [m.word.id]: (e[m.word.id] ?? 0) + 1 }))
+  }, [])
+  // «Я ответил правильно»: not a mistake after all — off the next round.
+  const accepted = useCallback((w: Word) => {
+    setWrong((ws) => withoutLast(ws, (x) => x.id === w.id))
+    setErrors((e) => ({ ...e, [w.id]: Math.max(0, (e[w.id] ?? 1) - 1) }))
   }, [])
 
   const next = () => {
@@ -331,6 +342,7 @@ function UntilRightSession({
           speakAnswer={speakAnswer}
           screenKeyboard={screenKeyboard}
           onAnswered={answered}
+          onAccepted={accepted}
           onNext={next}
         />
       </div>

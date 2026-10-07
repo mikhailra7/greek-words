@@ -9,6 +9,15 @@ const ROWS = [
   ['DIA', 'ζ', 'χ', 'ψ', 'ω', 'β', 'ν', 'μ', 'BACK'],
 ]
 
+// The bottom row, around the space bar. «;» is the Greek question mark.
+const PUNCTUATION: [string, string][] = [
+  [',', 'Запятая'],
+  ['.', 'Точка'],
+  [';', 'Вопросительный знак (;)'],
+  ['!', 'Восклицательный знак'],
+  ["'", 'Апостроф'],
+]
+
 const TONOS: Record<string, string> = {
   α: 'ά',
   ε: 'έ',
@@ -48,12 +57,36 @@ export default function GreekKeyboard({
 }) {
   const [tonos, setTonos] = useState(false)
   const [dia, setDia] = useState(false)
+  // ⇧ like on a phone: once — the next letter is a capital; twice — all capitals (⇪); again — off.
+  const [shift, setShift] = useState<'off' | 'once' | 'lock'>('off')
+  const cased = (text: string) => (shift === 'off' ? text : text.toUpperCase())
 
   const letter = (ch: string) => {
-    onInput(withMarks(ch, tonos, dia))
+    onInput(cased(withMarks(ch, tonos, dia)))
     setTonos(false)
     setDia(false)
+    if (shift === 'once') setShift('off')
   }
+  const nextShift = () => setShift(shift === 'off' ? 'once' : shift === 'once' ? 'lock' : 'off')
+
+  // Punctuation: as is (no marks, no capitals); a pending ΄ / ¨ is dropped.
+  const punctuationKey = ([text, label]: [string, string]) => (
+    <button
+      key={text}
+      type="button"
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      onClick={() => {
+        onInput(text)
+        setTonos(false)
+        setDia(false)
+      }}
+      className={`${keyBase} ${keyIdle} text-xl font-semibold`}
+    >
+      {text}
+    </button>
+  )
 
   const renderKey = (key: string) => {
     if (key === 'TONOS' || key === 'DIA') {
@@ -87,7 +120,7 @@ export default function GreekKeyboard({
         </button>
       )
     }
-    const shown = withMarks(key, tonos, dia)
+    const shown = cased(withMarks(key, tonos, dia))
     return (
       <button
         key={key}
@@ -120,12 +153,25 @@ export default function GreekKeyboard({
         <button
           type="button"
           disabled={disabled}
+          aria-label="Заглавные"
+          aria-pressed={shift !== 'off'}
+          title="Заглавные: нажать — одна заглавная буква, ещё раз — все заглавные, ещё раз — выключить"
+          onClick={nextShift}
+          className={`${keyBase} ${shift === 'off' ? keyIdle : keyOn} col-span-2 text-xl`}
+        >
+          {shift === 'lock' ? '⇪' : '⇧'}
+        </button>
+        {PUNCTUATION.slice(0, 2).map((p) => punctuationKey(p))}
+        <button
+          type="button"
+          disabled={disabled}
           aria-label="Пробел"
           onClick={() => onInput(' ')}
-          className={`${keyBase} ${keyIdle} col-span-6 col-start-3`}
+          className={`${keyBase} ${keyIdle} col-span-3`}
         >
           <span className="text-sm text-slate-400">пробел</span>
         </button>
+        {PUNCTUATION.slice(2).map((p) => punctuationKey(p))}
       </div>
     </div>
   )

@@ -17,6 +17,7 @@ import {
   useActiveCount,
   sessionKey,
   useTrainerSettings,
+  withoutLast,
   type Mistake,
 } from '../trainers/common.tsx'
 import WriteTask from '../trainers/WriteTask.tsx'
@@ -172,6 +173,10 @@ function MixSession({
       m && type && setMistakes((all) => [...all, { ...m, task: TASK_LABEL[type].tag }]),
     [type],
   )
+  const accepted = useCallback(
+    (w: Word) => setMistakes((all) => withoutLast(all, (m) => m.word.id === w.id)),
+    [],
+  )
 
   const exit = useCallback(() => {
     if (done || confirm('Закончить тренировку?')) onExit()
@@ -211,6 +216,7 @@ function MixSession({
             speakAnswer={speakAnswer}
             screenKeyboard={screenKeyboard}
             onAnswered={answered}
+            onAccepted={accepted}
             onNext={next}
           />
         ) : (

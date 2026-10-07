@@ -164,6 +164,7 @@ class SegmentOut(BaseModel):
 
 
 class WriteCheckOut(BaseModel):
+    answer_id: int = 0  # the answers_log row — «Я ответил правильно» flips it
     correct: bool
     expected: str
     hint: str | None
@@ -178,17 +179,32 @@ def write_check(body: WriteCheckIn, user: CurrentUser, db: DbSession) -> WriteCh
     if word is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Слово не найдено")
     result = check(body.answer, word.full_greek, word.article)
-    db.add(
-        AnswerLog(
-            user_id=user.id,
-            word_id=word.id,
-            mode="write",
-            is_correct=result.correct,
-            given_answer=body.answer[:300],
-        )
+    entry = AnswerLog(
+        user_id=user.id,
+        word_id=word.id,
+        mode="write",
+        is_correct=result.correct,
+        given_answer=body.answer[:300],
     )
+    db.add(entry)
     db.commit()
-    return WriteCheckOut.model_validate(result, from_attributes=True)
+    out = WriteCheckOut.model_validate(result, from_attributes=True)
+    out.answer_id = entry.id
+    return out
+
+
+@router.post("/training/answers/{answer_id}/accept", status_code=status.HTTP_204_NO_CONTENT)
+def accept_answer(answer_id: int, user: CurrentUser, db: DbSession) -> None:
+    """«Я ответил правильно»: the learner overrules the check of a typed answer — it counts as
+    right in the word's statistics (and the page counts it right in the exercise). Only one's
+    own «Напиши» answers, and not «Не знаю» (an empty answer)."""
+    entry = db.get(AnswerLog, answer_id)
+    if entry is None or entry.user_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ответ не найден")
+    if entry.mode != "write" or not (entry.given_answer or "").strip():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Этот ответ нельзя засчитать")
+    entry.is_correct = True
+    db.commit()
 
 
 # --- remembered settings ---

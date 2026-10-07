@@ -369,6 +369,9 @@ test('dialogues: «Ввод по памяти» — lenient check, differing wor
   await expect(page.getByLabel('Ваш ответ').locator('.bg-red-100')).toHaveText(['ησαι'])
   await expect(page.getByLabel('Правильно').locator('.bg-green-100')).toHaveText(['είσαι'])
   await expect(page.getByLabel('Правильно')).toHaveText('Κι εγώ. Από πού είσαι;') // punctuation kept
+  // «Я ответил правильно»: counted as right after all.
+  await page.getByRole('button', { name: 'Я ответил правильно' }).click()
+  await expect(page.getByText('Засчитано как верно ✓')).toBeVisible()
   await page.getByRole('button', { name: 'Далее' }).click()
 
   // Latin letters get a hint; «Не знаю» shows the line and counts as wrong.
@@ -378,7 +381,7 @@ test('dialogues: «Ввод по памяти» — lenient check, differing wor
   await expect(page.getByText('Похоже, введены латинские буквы')).toBeVisible()
   await page.getByRole('button', { name: 'Далее' }).click()
 
-  await expect(page.getByText('Верно: 1 из 3')).toBeVisible({ timeout: 5_000 })
+  await expect(page.getByText('Верно: 2 из 3')).toBeVisible({ timeout: 5_000 }) // 1 + accepted
   await page.getByRole('button', { name: 'Другие реплики' }).click()
   await page.getByLabel('Экранная клавиатура').uncheck() // leave the shared user as it was
   await page.getByRole('tab', { name: 'Чтение' }).click()
