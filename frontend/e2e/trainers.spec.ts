@@ -577,6 +577,16 @@ test('write: the site keyboard — ⇧ for one capital, ⇪ for all, punctuation
   await key('Апостроф')
   await expect(input).toHaveValue("Το ΝΕΌ;,'")
 
+  // Holding a vowel types it with the accent; a plain tap — without.
+  const alpha = keyboard.getByRole('button', { name: 'α', exact: true })
+  const box = (await alpha.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(600)
+  await page.mouse.up()
+  await alpha.click()
+  await expect(input).toHaveValue("Το ΝΕΌ;,'άα")
+
   await page.getByRole('button', { name: 'Не знаю' }).click()
   await expect(page.getByText('Ваш ответ')).toBeVisible()
   await input.press('Enter')
