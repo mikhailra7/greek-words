@@ -302,3 +302,40 @@ def test_reorder_words(admin_client, member):
         == 409
     )
     assert member.put(f"/api/dictionaries/{d}/order", json={"word_ids": ids}).status_code == 403
+
+
+def test_import_words_into_dictionary(admin_client, member):
+    import json
+
+    d = _create_dict(admin_client)
+    admin_client.post(f"/api/dictionaries/{d}/words", json=WATER)  # «το νερό» is there already
+    cat = admin_client.post("/api/categories", json={"name": "Еда"}).json()["id"]
+    words = [
+        {"article": "το", "greek": "ψωμί", "translations_ru": ["хлеб"], "category_id": cat},
+        {"article": "το", "greek": "νερό", "translations_ru": ["вода"]},  # duplicate
+        {"article": "το", "greek": "γάλα", "translations_ru": ["молоко"], "category_id": 999},
+        {"article": "το", "greek": "ψωμί", "translations_ru": ["хлеб"]},  # twice in the file
+    ]
+    text = "Вот слова:\n```json\n" + json.dumps({"title": "что угодно", "words": words}) + "\n```"
+    r = admin_client.post(f"/api/dictionaries/{d}/words/import", json={"text": text})
+    assert r.status_code == 200, r.text
+    assert r.json() == {"added": 2, "skipped": ["το νερό", "το ψωμί"]}
+    got = admin_client.get(f"/api/dictionaries/{d}").json()["words"]
+    assert [w["greek"] for w in got] == ["νερό", "ψωμί", "γάλα"]  # at the end, in order
+    assert [w["category_id"] for w in got] == [None, cat, None]  # an unknown category is dropped
+    # The same file again: nothing new.
+    again = admin_client.post(f"/api/dictionaries/{d}/words/import", json={"text": text})
+    assert again.json()["added"] == 0
+
+    def problem(t):
+        r = admin_client.post(f"/api/dictionaries/{d}/words/import", json={"text": t})
+        assert r.status_code == 400
+        return r.json()["detail"]
+
+    assert "Не нашёл JSON" in problem("просто текст")
+    assert "нет списка слов" in problem('{"title": "x"}')
+    assert "Это диалог" in problem('{"type": "dialogue", "lines": []}')
+    assert "слово 1" in problem('{"words": [{"greek": "νερό"}]}')  # no translation
+    assert (
+        member.post(f"/api/dictionaries/{d}/words/import", json={"text": text}).status_code == 403
+    )

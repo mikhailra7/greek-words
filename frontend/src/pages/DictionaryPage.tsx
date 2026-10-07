@@ -9,6 +9,7 @@ import {
   type Word,
   type WordInput,
 } from '../api/types.ts'
+import AddWordsSheet from '../components/AddWordsSheet.tsx'
 import AnswerStats from '../components/AnswerStats.tsx'
 import CategorizeSheet from '../components/CategorizeSheet.tsx'
 import { KnownCheckbox, ResetKnownButton } from '../components/KnownCheckbox.tsx'
@@ -33,6 +34,8 @@ export default function DictionaryPage() {
   const [categories, reloadCategories] = useCategories()
   const [categorizing, setCategorizing] = useState(false)
   const [reordering, setReordering] = useState(false)
+  const [addingJson, setAddingJson] = useState(false)
+  const [notice, setNotice] = useState('')
   // Bumped when a failed save brings back the server's order: WordOrder starts over from it.
   const [orderVersion, setOrderVersion] = useState(0)
 
@@ -151,6 +154,9 @@ export default function DictionaryPage() {
       {dict.can_edit && (
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setEditing({ kind: 'new' })}>+ Слово</Button>
+          <Button variant="secondary" onClick={() => setAddingJson(true)}>
+            + Слова из JSON
+          </Button>
           {dict.words.length > 1 && (
             <Button
               variant="secondary"
@@ -182,6 +188,25 @@ export default function DictionaryPage() {
       )}
 
       <ErrorText>{error}</ErrorText>
+      {notice && (
+        <p
+          role="status"
+          className="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200"
+        >
+          {notice}
+        </p>
+      )}
+      {addingJson && (
+        <AddWordsSheet
+          dictionaryId={dict.id}
+          onClose={() => setAddingJson(false)}
+          onDone={async (message) => {
+            setAddingJson(false)
+            setNotice(message)
+            await load()
+          }}
+        />
+      )}
 
       {reordering ? (
         <>

@@ -24,8 +24,13 @@ from app.schemas.dictionary import (
 )
 from app.schemas.importing import PasteJsonIn
 from app.services import media, tts
-from app.services.dictionaries import add_words, create_from_file
-from app.services.importing import ImportProblem, export_package, parse_dictionary_text
+from app.services.dictionaries import add_words, append_words, create_from_file
+from app.services.importing import (
+    ImportProblem,
+    export_package,
+    parse_dictionary_text,
+    parse_words_text,
+)
 
 router = APIRouter(tags=["dictionaries"])
 
@@ -309,6 +314,27 @@ def create_word(dictionary_id: int, body: WordIn, user: CurrentUser, db: DbSessi
     db.commit()
     tts.warm_up([d.words[-1].id])
     return d.words[-1]
+
+
+class WordsImportOut(BaseModel):
+    added: int
+    skipped: list[str]  # already in the dictionary (or twice in the file)
+
+
+@router.post("/dictionaries/{dictionary_id}/words/import", response_model=WordsImportOut)
+def import_words(
+    dictionary_id: int, body: PasteJsonIn, user: CurrentUser, db: DbSession
+) -> WordsImportOut:
+    """«+ Слова из JSON»: words into this dictionary from a JSON file or a Claude answer
+    (```json and text around are fine; errors name the word and the field)."""
+    d = _get_editable(db, user, dictionary_id)
+    try:
+        words = parse_words_text(body.text)
+    except ImportProblem as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+    added, skipped = append_words(db, d, words)
+    tts.warm_up([w.id for w in added])
+    return WordsImportOut(added=len(added), skipped=skipped)
 
 
 @router.put("/words/{word_id}", response_model=WordOut)

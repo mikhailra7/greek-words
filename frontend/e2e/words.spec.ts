@@ -89,3 +89,48 @@ test('«5/7» next to words: the last answers, on the dictionary and category pa
   await page.goto(`/categories/${cat.id}`)
   await expect(page.getByLabel('Последние ответы: 2 из 3')).toHaveText('2/3')
 })
+
+test('«+ Слова из JSON»: a pasted Claude answer or a file, duplicates skipped', async ({
+  page,
+  request,
+}) => {
+  const dict = await seedDictionary(request, `Из JSON ${Date.now()}`, [
+    { article: 'το', greek: 'νερό', translations_ru: ['вода'] },
+  ])
+  await page.goto(`/dictionaries/${dict}`)
+  await page.getByRole('button', { name: '+ Слова из JSON' }).click()
+  const answer = {
+    words: [
+      { article: 'το', greek: 'ψωμί', translations_ru: ['хлеб'] },
+      { article: 'το', greek: 'νερό', translations_ru: ['вода'] },
+    ],
+  }
+  await page
+    .getByLabel('…или вставьте JSON / ответ Claude')
+    .fill('Готово:\n```json\n' + JSON.stringify(answer) + '\n```')
+  await page.getByRole('button', { name: 'Добавить слова' }).click()
+  await expect(page.getByRole('status')).toContainText('Добавлено: 1 слово.')
+  await expect(page.getByRole('status')).toContainText('пропущены (1): το νερό')
+
+  // From a file too; a broken one names the word and the field.
+  await page.getByRole('button', { name: '+ Слова из JSON' }).click()
+  await page.getByLabel('Файл со словами (JSON)').setInputFiles({
+    name: 'bad.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ words: [{ greek: 'γάλα' }] })),
+  })
+  await expect(page.getByRole('alert')).toContainText('слово 1')
+  await page.getByLabel('Файл со словами (JSON)').setInputFiles({
+    name: 'words.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify({
+        title: 'x',
+        words: [{ article: 'το', greek: 'γάλα', translations_ru: ['молоко'] }],
+      }),
+    ),
+  })
+  await expect(page.getByRole('status')).toContainText('Добавлено: 1 слово.')
+  const greek = await page.locator('li [lang=el].text-lg').allTextContents()
+  expect(greek).toEqual(['το νερό', 'το ψωμί', 'το γάλα']) // added at the end
+})

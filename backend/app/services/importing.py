@@ -154,6 +154,23 @@ def parse_dictionary_text(text: str) -> DictionaryFile:
     return _validate(data, DictionaryFile)
 
 
+def parse_words_text(text: str) -> list:
+    """Words to add to an existing dictionary: a dictionary JSON file or a Claude answer to the
+    «список слов» prompt — only `words` matters (the title, if any, is ignored)."""
+    try:
+        data = extract_json(text)
+    except ValueError as e:
+        raise ImportProblem(str(e)) from e
+    if data.get("type") == "dialogue":
+        raise ImportProblem("Это диалог — его загружают в разделе «Диалоги»")
+    if not isinstance(data.get("words"), list):
+        raise ImportProblem("В JSON нет списка слов («words»)")
+    if not data["words"]:
+        raise ImportProblem("Список слов пустой")
+    data = {**data, "title": data.get("title") or "—"}
+    return _validate(data, DictionaryFile).words
+
+
 def apply_pasted_json(db: Session, job: ImportJob, text: str) -> None:
     try:
         data = extract_json(text)
