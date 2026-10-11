@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { api } from '../api/client.ts'
+import { ActiveCheckbox, afterActiveToggle } from '../components/StudyCheckbox.tsx'
 import {
   activeSummaryText,
   byAuthor,
@@ -42,7 +43,9 @@ export default function DictionariesPage() {
     // Optimistic: the checkbox should react instantly on a phone.
     setData({
       ...data,
-      dictionaries: data.dictionaries.map((x) => (x.id === d.id ? { ...x, is_active: active } : x)),
+      dictionaries: data.dictionaries.map((x) =>
+        x.id === d.id ? afterActiveToggle(x, x.word_count) : x,
+      ),
     })
     try {
       const summary = await api<ActiveSummary>(`/dictionaries/${d.id}/active`, {
@@ -186,12 +189,11 @@ export default function DictionariesPage() {
                 <li key={d.id}>
                   <Card className="flex items-stretch gap-1 p-0">
                     <label className="flex cursor-pointer items-center py-4 pr-2 pl-4">
-                      <input
-                        type="checkbox"
-                        className="size-6 accent-blue-600"
-                        checked={d.is_active}
+                      <ActiveCheckbox
+                        active={d.is_active}
+                        partial={d.study_count > 0}
                         onChange={() => toggle(d)}
-                        aria-label={`Использовать «${d.title}» в тренировках`}
+                        label={`Использовать «${d.title}» в тренировках`}
                       />
                     </label>
                     <Link

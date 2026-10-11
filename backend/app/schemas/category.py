@@ -26,7 +26,8 @@ class CategoryOut(BaseModel):
     emoji: str | None
     position: int
     word_count: int
-    is_active: bool
+    is_active: bool  # «Использовать в тренировках»: every word ticked «Изучать» (and new ones)
+    study_count: int = 0  # words ticked «Изучать» in it
     can_edit: bool
     author: str | None = None  # username of who made it
 

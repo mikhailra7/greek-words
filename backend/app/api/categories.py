@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dictionaries import visible_filter
@@ -13,9 +13,9 @@ from app.schemas.category import (
     CategoryPatch,
     CategoryWordOut,
 )
-from app.schemas.dictionary import ActiveIn, ActiveSummary, AnswerStats, WordOrderIn, WordOut
-from app.services.selection import known_ids
-from app.services.stats import last_answers
+from app.schemas.dictionary import ActiveIn, ActiveSummary, WordOrderIn, WordOut
+from app.services import study
+from app.services.selection import fill_page_words, known_ids
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -50,7 +50,7 @@ def _active_ids(db: DbSession, user: User) -> set[int]:
     )
 
 
-def _out(c: Category, user: User, count: int, active: bool) -> CategoryOut:
+def _out(c: Category, user: User, count: int, active: bool, ticked: int = 0) -> CategoryOut:
     return CategoryOut(
         id=c.id,
         name=c.name,
@@ -58,6 +58,7 @@ def _out(c: Category, user: User, count: int, active: bool) -> CategoryOut:
         position=c.position,
         word_count=count,
         is_active=active,
+        study_count=ticked,
         can_edit=user.is_admin,
         author=c.author.username if c.author else None,
     )
@@ -83,7 +84,8 @@ def _commit_unique(db: DbSession) -> None:
 def list_categories(user: CurrentUser, db: DbSession) -> list[CategoryOut]:
     cats = db.scalars(select(Category).order_by(Category.position, Category.name)).all()
     counts, active = _word_counts(db, user), _active_ids(db, user)
-    return [_out(c, user, counts.get(c.id, 0), c.id in active) for c in cats]
+    ticked = study.ticked_counts(db, user.id, "category")
+    return [_out(c, user, counts.get(c.id, 0), c.id in active, ticked.get(c.id, 0)) for c in cats]
 
 
 @router.post("", response_model=CategoryOut, status_code=status.HTTP_201_CREATED)
@@ -119,19 +121,16 @@ def get_category(category_id: int, user: CurrentUser, db: DbSession) -> Category
     c = _get(db, category_id)
     rows = db.execute(_words_query(c, user)).all()
     known = known_ids(db, user, [w.id for w, _ in rows])
-    stats = last_answers(db, user, [w.id for w, _ in rows])
     words = [
         CategoryWordOut(
-            **WordOut.model_validate(w).model_dump(exclude={"known", "answers"}),
+            **WordOut.model_validate(w).model_dump(exclude={"known"}),
             dictionary_title=title,
             known=w.id in known,
-            answers=AnswerStats(right=stats[w.id][0], total=stats[w.id][1])
-            if w.id in stats
-            else None,
         )
         for w, title in rows
     ]
-    base = _out(c, user, len(words), c.id in _active_ids(db, user))
+    fill_page_words(db, user, words, "category")
+    base = _out(c, user, len(words), c.id in _active_ids(db, user), sum(w.study for w in words))
     return CategoryDetailOut(**base.model_dump(), words=words)
 
 
@@ -178,15 +177,10 @@ def delete_category(category_id: int, user: CurrentUser, db: DbSession) -> None:
 
 @router.put("/{category_id}/active", response_model=ActiveSummary)
 def set_active(category_id: int, body: ActiveIn, user: CurrentUser, db: DbSession) -> ActiveSummary:
+    """«Использовать в тренировках»: «Изучать» on every word of the category (and on the ones
+    added to it later), or off on all of them — the ticks in dictionaries stay."""
     from app.api.dictionaries import active_summary
 
     _get(db, category_id)
-    db.execute(
-        delete(UserActiveCategory).where(
-            UserActiveCategory.user_id == user.id, UserActiveCategory.category_id == category_id
-        )
-    )
-    if body.active:
-        db.add(UserActiveCategory(user_id=user.id, category_id=category_id))
-    db.commit()
+    study.set_container(db, user.id, "category", category_id, body.active)
     return active_summary(db, user)

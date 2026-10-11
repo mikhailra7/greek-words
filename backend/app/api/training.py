@@ -16,6 +16,7 @@ from app.services.quiz import TaskType, build_hard_questions, build_questions, m
 from app.services.selection import SortMode, active_words, sorted_words, visible_words, with_known
 from app.services.selection import training_words as training_pool
 from app.services.spelling import check
+from app.services.stats import mark_known_if_mastered
 
 router = APIRouter(tags=["training"])
 
@@ -153,6 +154,8 @@ def log_answer(body: AnswerIn, user: CurrentUser, db: DbSession) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Слово не найдено")
     db.add(AnswerLog(user_id=user.id, **body.model_dump()))
     db.commit()
+    if body.is_correct:
+        mark_known_if_mastered(db, user, body.word_id)
 
 
 class WriteCheckIn(BaseModel):
@@ -190,6 +193,8 @@ def write_check(body: WriteCheckIn, user: CurrentUser, db: DbSession) -> WriteCh
     )
     db.add(entry)
     db.commit()
+    if result.correct:
+        mark_known_if_mastered(db, user, word.id)
     out = WriteCheckOut.model_validate(result, from_attributes=True)
     out.answer_id = entry.id
     return out
@@ -207,6 +212,7 @@ def accept_answer(answer_id: int, user: CurrentUser, db: DbSession) -> None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Этот ответ нельзя засчитать")
     entry.is_correct = True
     db.commit()
+    mark_known_if_mastered(db, user, entry.word_id)
 
 
 # --- remembered settings ---

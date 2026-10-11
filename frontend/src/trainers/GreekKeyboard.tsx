@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
 
-// On-screen Greek keyboard for «Напиши»: always on a laptop (under the field); on a phone only
-// with the «Экранная клавиатура» setting — then pinned to the bottom of the screen, full width,
-// and the phone's own keyboard stays closed. Holding a vowel types it with the accent. Standard Greek
+// On-screen Greek keyboard for «Напиши»: always on a laptop; on a phone only with the
+// «Экранная клавиатура» setting (the phone's own keyboard then stays closed). Right under the
+// answer field, the width of the content (pinned to the screen's bottom edge it sat too low). Holding a vowel types it with the accent. Standard Greek
 // layout; ΄ (τόνος) and ¨ (διαλυτικά) are dead keys like on a real one: press, then the vowel.
 const ROWS = [
   ['ς', 'ε', 'ρ', 'τ', 'υ', 'θ', 'ι', 'ο', 'π'],
@@ -178,15 +178,12 @@ export default function GreekKeyboard({
 
   return (
     <>
-      {/* Phone: the keyboard is pinned to the bottom of the screen, full width; this keeps
-          the same room free under the content so nothing ends up behind it. */}
-      {always && <div aria-hidden="true" className="h-56 shrink-0 md:hidden" />}
       {/* mousedown is cancelled so the answer field keeps focus (and the caret) while clicking. */}
       <div
         role="group"
         aria-label="Греческая клавиатура"
         onMouseDown={(e) => e.preventDefault()}
-        className={`${always ? 'block' : 'hidden md:block'} space-y-1 bg-slate-100 select-none max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-50 max-md:border-t max-md:border-slate-200 max-md:px-1 max-md:pt-1 max-md:pb-[max(0.25rem,env(safe-area-inset-bottom))] max-md:shadow-[0_-4px_12px_rgba(0,0,0,0.08)] md:space-y-1.5 md:rounded-2xl md:p-2 dark:border-slate-700 dark:bg-slate-800`}
+        className={`${always ? 'block' : 'hidden md:block'} space-y-1 rounded-2xl bg-slate-100 p-1 select-none sm:space-y-1.5 sm:p-2 dark:bg-slate-800`}
       >
         {ROWS.map((row, i) => (
           <div key={i} className="grid grid-cols-10 gap-1 sm:gap-1.5">

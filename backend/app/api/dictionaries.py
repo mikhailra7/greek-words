@@ -1,17 +1,17 @@
 import re
+from typing import Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, delete, func, or_, select
+from sqlalchemy import ColumnElement, func, or_, select
 
 from app.auth import CurrentUser
 from app.db import DbSession
-from app.models import Category, Dictionary, User, UserActiveCategory, UserActiveDictionary, Word
+from app.models import Category, Dictionary, User, UserActiveDictionary, Word
 from app.schemas.dictionary import (
     ActiveIn,
     ActiveSummary,
-    AnswerStats,
     DictionaryDetailOut,
     DictionaryFile,
     DictionaryIn,
@@ -24,7 +24,7 @@ from app.schemas.dictionary import (
     WordOut,
 )
 from app.schemas.importing import PasteJsonIn
-from app.services import media, tts
+from app.services import media, study, tts
 from app.services.dictionaries import add_words, append_words, create_from_file
 from app.services.importing import (
     ImportProblem,
@@ -99,16 +99,10 @@ def _active_ids(db: DbSession, user: User) -> set[int]:
 def active_summary(db: DbSession, user: User) -> ActiveSummary:
     from app.services.selection import active_word_count, known_word_count
 
-    dicts = db.scalar(
-        select(func.count(Dictionary.id))
-        .join(UserActiveDictionary, UserActiveDictionary.dictionary_id == Dictionary.id)
-        .where(UserActiveDictionary.user_id == user.id, visible_filter(user))
-    )
-    cats = db.scalar(
-        select(func.count(UserActiveCategory.category_id)).where(
-            UserActiveCategory.user_id == user.id
-        )
-    )
+    # Dictionaries / categories with at least one word ticked «Изучать» there.
+    visible = set(db.scalars(select(Dictionary.id).where(visible_filter(user))))
+    dicts = len(visible & set(study.ticked_counts(db, user.id, "dictionary")))
+    cats = len(study.ticked_counts(db, user.id, "category"))
     total = active_word_count(db, user)
     return ActiveSummary(
         dictionaries=dicts or 0,
@@ -119,7 +113,9 @@ def active_summary(db: DbSession, user: User) -> ActiveSummary:
     )
 
 
-def _dictionary_out(d: Dictionary, user: User, word_count: int, active: bool) -> DictionaryOut:
+def _dictionary_out(
+    d: Dictionary, user: User, word_count: int, active: bool, study_count: int = 0
+) -> DictionaryOut:
     return DictionaryOut(
         id=d.id,
         title=d.title,
@@ -128,6 +124,7 @@ def _dictionary_out(d: Dictionary, user: User, word_count: int, active: bool) ->
         is_published=d.is_published,
         word_count=word_count,
         is_active=active,
+        study_count=study_count,
         can_edit=can_edit_dictionary(user, d),
         author=d.author.username if d.author else None,
     )
@@ -143,8 +140,12 @@ def list_dictionaries(user: CurrentUser, db: DbSession) -> DictionaryListOut:
     ).all()
     counts = _word_counts(db, [d.id for d in dicts])
     active = _active_ids(db, user)
+    ticked = study.ticked_counts(db, user.id, "dictionary")
     return DictionaryListOut(
-        dictionaries=[_dictionary_out(d, user, counts.get(d.id, 0), d.id in active) for d in dicts],
+        dictionaries=[
+            _dictionary_out(d, user, counts.get(d.id, 0), d.id in active, ticked.get(d.id, 0))
+            for d in dicts
+        ],
         active=active_summary(db, user),
     )
 
@@ -189,14 +190,11 @@ def import_dictionary_text(body: PasteJsonIn, user: CurrentUser, db: DbSession) 
 def get_dictionary(dictionary_id: int, user: CurrentUser, db: DbSession) -> DictionaryDetailOut:
     d = get_visible(db, user, dictionary_id)
     base = _dictionary_out(d, user, len(d.words), d.id in _active_ids(db, user))
-    from app.services.selection import with_known
-    from app.services.stats import last_answers
+    from app.services.selection import fill_page_words, with_known
 
     words = with_known(db, user, d.words, WordOut)
-    stats = last_answers(db, user, [w.id for w in words])
-    for w in words:
-        if w.id in stats:
-            w.answers = AnswerStats(right=stats[w.id][0], total=stats[w.id][1])
+    fill_page_words(db, user, words, "dictionary")
+    base.study_count = sum(w.study for w in words)
     return DictionaryDetailOut(**base.model_dump(), words=words)
 
 
@@ -231,16 +229,10 @@ def delete_dictionary(dictionary_id: int, user: CurrentUser, db: DbSession) -> N
 def set_active(
     dictionary_id: int, body: ActiveIn, user: CurrentUser, db: DbSession
 ) -> ActiveSummary:
+    """«Использовать в тренировках»: «Изучать» on every word of the dictionary (and on the
+    ones added later), or off on all of them — the ticks in categories stay."""
     get_visible(db, user, dictionary_id)
-    db.execute(
-        delete(UserActiveDictionary).where(
-            UserActiveDictionary.user_id == user.id,
-            UserActiveDictionary.dictionary_id == dictionary_id,
-        )
-    )
-    if body.active:
-        db.add(UserActiveDictionary(user_id=user.id, dictionary_id=dictionary_id))
-    db.commit()
+    study.set_container(db, user.id, "dictionary", dictionary_id, body.active)
     return active_summary(db, user)
 
 
@@ -283,6 +275,24 @@ def export_dictionary(
         media_type="application/json",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}.json"},
     )
+
+
+class StudyIn(BaseModel):
+    study: bool
+    via: Literal["dictionary", "category"]  # the page it was ticked on
+
+
+@router.put("/words/{word_id}/study", response_model=ActiveSummary)
+def set_word_study(word_id: int, body: StudyIn, user: CurrentUser, db: DbSession) -> ActiveSummary:
+    """«Изучать» on one word — on its dictionary's page or on its category's page."""
+    word = db.get(Word, word_id)
+    if word is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Слово не найдено")
+    get_visible(db, user, word.dictionary_id)
+    if body.via == "category" and word.category_id is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "У слова нет категории")
+    study.set_word(db, user.id, word, body.via, body.study)
+    return active_summary(db, user)
 
 
 @router.get("/words/active/count", response_model=ActiveSummary)

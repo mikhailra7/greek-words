@@ -202,8 +202,9 @@ export default function WriteTask({
         </button>
       </form>
       {!result && (
-        <div className="-mt-2 flex justify-end">
-          {/* mousedown cancelled: the answer field (and the phone keyboard) keep focus. */}
+        <div className="-mt-2 flex justify-start">
+          {/* On the left, away from «Проверить» on the right: taps meant for it hit this one.
+              mousedown cancelled: the answer field (and the phone keyboard) keep focus. */}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}

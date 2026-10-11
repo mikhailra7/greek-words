@@ -20,6 +20,10 @@ export type Word = {
   known: boolean // per user: «Я знаю это слово»
   /** Per user, on the dictionary/category pages: the last 10 answers to the word. */
   answers?: { right: number; total: number } | null
+  /** Per user, dictionary/category pages: «Изучать» ticked on this page. */
+  study?: boolean
+  /** Dictionary/category pages: other dictionaries with the same word («Есть в словарях»). */
+  also_in?: { id: number; title: string }[]
 }
 
 export type WordInput = {
@@ -42,7 +46,8 @@ export type Dictionary = {
   source: string
   is_published: boolean
   word_count: number
-  is_active: boolean
+  is_active: boolean // «Использовать в тренировках»: all its words ticked «Изучать»
+  study_count: number // its words ticked «Изучать»
   can_edit: boolean
   author: string | null // who made it
 }
@@ -63,7 +68,8 @@ export type Category = {
   emoji: string | null
   position: number
   word_count: number
-  is_active: boolean
+  is_active: boolean // «Использовать в тренировках»: all its words ticked «Изучать»
+  study_count: number // its words ticked «Изучать»
   can_edit: boolean
   author: string | null // who made it
 }

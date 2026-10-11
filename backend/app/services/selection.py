@@ -1,21 +1,21 @@
-"""Which words a user trains on: words of their active dictionaries plus words of their
-active categories (from every visible dictionary), optionally without the words the user
+"""Which words a user trains on: the visible words they ticked «Изучать» (in the dictionary
+or in the category, see app/services/study.py), optionally without the words the user
 marked as known. One place, so counters and trainers agree."""
 
+import unicodedata
 from collections.abc import Iterable
 from typing import Literal
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from app.models import (
     Dictionary,
     User,
-    UserActiveCategory,
-    UserActiveDictionary,
     UserKnownWord,
     Word,
 )
+from app.services import study
 
 
 def _visible(user: User):
@@ -29,19 +29,12 @@ def _known_subquery(user: User) -> Select:
 
 
 def active_words_query(user: User, hide_known: bool = False) -> Select:
-    active_dicts = select(UserActiveDictionary.dictionary_id).where(
-        UserActiveDictionary.user_id == user.id
-    )
-    active_cats = select(UserActiveCategory.category_id).where(
-        UserActiveCategory.user_id == user.id
-    )
+    from app.services.study import studied_word_ids
+
     q = (
         select(Word)
         .join(Dictionary, Word.dictionary_id == Dictionary.id)
-        .where(
-            _visible(user),
-            or_(Word.dictionary_id.in_(active_dicts), Word.category_id.in_(active_cats)),
-        )
+        .where(_visible(user), Word.id.in_(studied_word_ids(user.id)))
     )
     if hide_known:
         q = q.where(Word.id.not_in(_known_subquery(user)))
@@ -133,18 +126,9 @@ def sorted_words(
             db.scalars(select(Category.id).order_by(Category.position, Category.name))
         )
     }
-    active_dicts = set(
-        db.scalars(
-            select(UserActiveDictionary.dictionary_id).where(
-                UserActiveDictionary.user_id == user.id
-            )
-        )
-    )
-    active_cats = set(
-        db.scalars(
-            select(UserActiveCategory.category_id).where(UserActiveCategory.user_id == user.id)
-        )
-    )
+    ids = [w.id for w in words]
+    in_dict = study.ticked_ids(db, user.id, "dictionary", ids)
+    in_cat = study.ticked_ids(db, user.id, "category", ids)
 
     def by_dictionary(w: Word) -> tuple:
         return (dict_order.get(w.dictionary_id, far), w.position, w.id)
@@ -155,12 +139,12 @@ def sorted_words(
 
     def group(w: Word) -> tuple:
         if sort == "category":
-            if w.category_id in active_cats:
+            if w.id in in_cat and w.category_id is not None:
                 return (0, cat_order.get(w.category_id, far))
             return (1, dict_order.get(w.dictionary_id, far))
-        # Not from an active dictionary (so it came with a category, or it's a known word in
-        # «Повторить выученные»): its category if any, else its own dictionary.
-        if w.dictionary_id in active_dicts or w.category_id is None:
+        # Not ticked in its dictionary (so it was ticked in its category, or it's a known word
+        # in «Повторить выученные»): its category if ticked there, else its own dictionary.
+        if w.id in in_dict or w.id not in in_cat or w.category_id is None:
             return (0, dict_order.get(w.dictionary_id, far))
         return (1, cat_order.get(w.category_id, far))
 
@@ -194,3 +178,37 @@ def _runs(ordered: list[list[Word]], count: int) -> list[Word]:
             start = random.randint(0, len(g) - n)
             picked.extend(g[start : start + n])
     return picked
+
+
+def _word_key(greek: str) -> str:
+    return unicodedata.normalize("NFC", greek).strip().casefold()
+
+
+def fill_page_words(db: Session, user: User, items: list, via: study.Via) -> None:
+    """Dictionary and category pages: per word the user's last answers, «Изучать» (ticked on
+    this page) and the other dictionaries with the same word («Есть в словарях» — to find
+    duplicates; the same spelling, the article doesn't matter)."""
+    from app.schemas.dictionary import AnswerStats, DictionaryRef
+    from app.services.stats import last_answers
+
+    ids = [w.id for w in items]
+    stats = last_answers(db, user, ids)
+    ticked = study.ticked_ids(db, user.id, via, ids)
+    by_key: dict[str, list[tuple[int, int, str]]] = {}
+    rows = db.execute(
+        select(Word.id, Word.greek, Dictionary.id, Dictionary.title)
+        .join(Dictionary, Word.dictionary_id == Dictionary.id)
+        .where(_visible(user))
+        .order_by(Dictionary.created_at)
+    )
+    for word_id, greek, d_id, title in rows:
+        by_key.setdefault(_word_key(greek), []).append((word_id, d_id, title))
+    for w in items:
+        if w.id in stats:
+            w.answers = AnswerStats(right=stats[w.id][0], total=stats[w.id][1])
+        w.study = w.id in ticked
+        refs: dict[int, DictionaryRef] = {}
+        for word_id, d_id, title in by_key.get(_word_key(w.greek), []):
+            if word_id != w.id:
+                refs.setdefault(d_id, DictionaryRef(id=d_id, title=title))
+        w.also_in = list(refs.values())

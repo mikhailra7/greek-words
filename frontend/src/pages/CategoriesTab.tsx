@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api/client.ts'
+import { ActiveCheckbox, afterActiveToggle } from '../components/StudyCheckbox.tsx'
 import { byAuthor, pluralWords, type ActiveSummary, type Category } from '../api/types.ts'
 import Sheet from '../components/Sheet.tsx'
 import { Button, Card, ErrorText, Field, Input, Spinner } from '../components/ui.tsx'
@@ -28,7 +29,7 @@ export default function CategoriesTab({
 
   const toggle = async (c: Category) => {
     const active = !c.is_active
-    setList((l) => l && l.map((x) => (x.id === c.id ? { ...x, is_active: active } : x)))
+    setList((l) => l && l.map((x) => (x.id === c.id ? afterActiveToggle(x, x.word_count) : x)))
     try {
       onSummary(
         await api<ActiveSummary>(`/categories/${c.id}/active`, {
@@ -47,7 +48,8 @@ export default function CategoriesTab({
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-600 dark:text-slate-400">
-        Отмеченная категория добавляет в тренировки свои слова из всех словарей.
+        Отмеченная категория добавляет в тренировки свои слова из всех словарей. Отдельные слова
+        отмечаются «учить» на странице категории.
       </p>
       {isAdmin && <Button onClick={() => setCreating(true)}>+ Новая категория</Button>}
       <ErrorText>{error}</ErrorText>
@@ -60,12 +62,11 @@ export default function CategoriesTab({
             <li key={c.id}>
               <Card className="flex items-stretch gap-1 p-0">
                 <label className="flex cursor-pointer items-center py-4 pr-2 pl-4">
-                  <input
-                    type="checkbox"
-                    className="size-6 accent-blue-600"
-                    checked={c.is_active}
+                  <ActiveCheckbox
+                    active={c.is_active}
+                    partial={c.study_count > 0}
                     onChange={() => toggle(c)}
-                    aria-label={`Использовать категорию «${c.name}» в тренировках`}
+                    label={`Использовать категорию «${c.name}» в тренировках`}
                   />
                 </label>
                 <Link

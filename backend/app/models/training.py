@@ -35,3 +35,22 @@ class UserKnownWord(Base):
         ForeignKey("words.id", ondelete="CASCADE"), primary_key=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class UserStudyWord(Base):
+    """«Изучать» on a word (SPEC) — per user and per place it was ticked: on the dictionary
+    page (`via=dictionary`) or on the category page (`via=category`). The two are separate:
+    unticking a whole dictionary keeps a word that is ticked in its category. A trainer draws
+    from the words with any of them. The dictionary's / category's «Использовать в
+    тренировках» ticks or unticks all its words (UserActiveDictionary / UserActiveCategory
+    then mean «all ticked»: new words of it are ticked too)."""
+
+    __tablename__ = "user_study_words"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    word_id: Mapped[int] = mapped_column(
+        ForeignKey("words.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    via: Mapped[str] = mapped_column(String(10), primary_key=True)  # dictionary | category

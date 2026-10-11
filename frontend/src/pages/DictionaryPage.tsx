@@ -11,6 +11,13 @@ import {
 } from '../api/types.ts'
 import AddWordsSheet from '../components/AddWordsSheet.tsx'
 import AnswerStats from '../components/AnswerStats.tsx'
+import {
+  ActiveCheckbox,
+  afterActiveToggle,
+  AlsoIn,
+  AlsoInLinks,
+  StudyCheckbox,
+} from '../components/StudyCheckbox.tsx'
 import CategorizeSheet from '../components/CategorizeSheet.tsx'
 import { KnownCheckbox, ResetKnownButton } from '../components/KnownCheckbox.tsx'
 import Sheet from '../components/Sheet.tsx'
@@ -67,9 +74,13 @@ export default function DictionaryPage() {
     }
   }
 
+  // «Использовать в тренировках» = «учить» on every word (or off on all of them).
   const toggleActive = async () => {
     const active = !dict.is_active
-    setDict({ ...dict, is_active: active })
+    setDict({
+      ...afterActiveToggle(dict, dict.words.length),
+      words: dict.words.map((w) => ({ ...w, study: active })),
+    })
     try {
       await api(`/dictionaries/${dict.id}/active`, {
         method: 'PUT',
@@ -80,6 +91,15 @@ export default function DictionaryPage() {
       await load()
     }
   }
+
+  // «учить» on one word: the dictionary's tick follows (all ticked — on, otherwise «–»).
+  const setStudy = (wordId: number, study: boolean) =>
+    setDict((d) => {
+      if (!d) return d
+      const words = d.words.map((x) => (x.id === wordId ? { ...x, study } : x))
+      const count = words.filter((x) => x.study).length
+      return { ...d, words, study_count: count, is_active: count === words.length }
+    })
 
   const saveWord = async (data: WordInput) => {
     if (editing?.kind === 'word') {
@@ -136,13 +156,21 @@ export default function DictionaryPage() {
       </div>
 
       <label className="flex cursor-pointer items-center gap-3">
-        <input
-          type="checkbox"
-          className="size-6 accent-blue-600"
-          checked={dict.is_active}
+        <ActiveCheckbox
+          active={dict.is_active}
+          partial={dict.study_count > 0}
           onChange={toggleActive}
+          label="Использовать в тренировках"
         />
-        <span>Использовать в тренировках</span>
+        <span>
+          Использовать в тренировках
+          {!dict.is_active && dict.study_count > 0 && (
+            <span className="text-sm text-slate-500">
+              {' '}
+              · отмечено {dict.study_count} из {dict.words.length}
+            </span>
+          )}
+        </span>
       </label>
 
       <ResetKnownButton
@@ -224,6 +252,7 @@ export default function DictionaryPage() {
             <li key={w.id}>
               <WordRow
                 word={w}
+                onStudyChange={(study) => setStudy(w.id, study)}
                 category={categories?.find((c) => c.id === w.category_id)}
                 onKnownChange={(known) =>
                   setDict(
@@ -248,6 +277,12 @@ export default function DictionaryPage() {
         >
           {editing.kind === 'word' && (
             <WordImage word={editing.word} onChanged={imageChanged} note={editing.justAdded} />
+          )}
+          {editing.kind === 'word' && (
+            <AlsoInLinks
+              dictionaries={editing.word.also_in ?? []}
+              onOpen={() => setEditing(null)}
+            />
           )}
           <WordForm
             categories={categories ?? []}
@@ -295,11 +330,13 @@ function WordRow({
   category,
   onClick,
   onKnownChange,
+  onStudyChange,
 }: {
   word: Word
   category?: Category
   onClick?: () => void
   onKnownChange: (known: boolean) => void
+  onStudyChange: (study: boolean) => void
 }) {
   const content = (
     <>
@@ -322,12 +359,20 @@ function WordRow({
         {category && (
           <span className="block truncate text-xs text-slate-400">{categoryLabel(category)}</span>
         )}
+        <AlsoIn dictionaries={word.also_in ?? []} />
       </span>
     </>
   )
   const className = 'flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-1 text-left'
   return (
     <div className="flex items-center pr-1">
+      <StudyCheckbox
+        wordId={word.id}
+        greek={word.full_greek}
+        study={word.study ?? false}
+        via="dictionary"
+        onChange={onStudyChange}
+      />
       <KnownCheckbox
         wordId={word.id}
         greek={word.full_greek}

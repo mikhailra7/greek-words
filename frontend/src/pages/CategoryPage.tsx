@@ -3,6 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { api } from '../api/client.ts'
 import { byAuthor, pluralWords, type CategoryDetail } from '../api/types.ts'
 import AnswerStats from '../components/AnswerStats.tsx'
+import {
+  ActiveCheckbox,
+  afterActiveToggle,
+  AlsoIn,
+  StudyCheckbox,
+} from '../components/StudyCheckbox.tsx'
 import { KnownCheckbox, ResetKnownButton } from '../components/KnownCheckbox.tsx'
 import Sheet from '../components/Sheet.tsx'
 import SpeakButton from '../components/SpeakButton.tsx'
@@ -30,9 +36,13 @@ export default function CategoryPage() {
 
   if (!cat) return error ? <ErrorText>{error}</ErrorText> : <Spinner />
 
+  // «Использовать в тренировках» = «учить» on every word here (or off on all of them).
   const toggleActive = async () => {
     const active = !cat.is_active
-    setCat({ ...cat, is_active: active })
+    setCat({
+      ...afterActiveToggle(cat, cat.words.length),
+      words: cat.words.map((w) => ({ ...w, study: active })),
+    })
     try {
       await api(`/categories/${cat.id}/active`, {
         method: 'PUT',
@@ -59,6 +69,15 @@ export default function CategoryPage() {
     }
   }
 
+  // «учить» on one word: the category's tick follows (all ticked — on, otherwise «–»).
+  const setStudy = (wordId: number, study: boolean) =>
+    setCat((c) => {
+      if (!c) return c
+      const words = c.words.map((x) => (x.id === wordId ? { ...x, study } : x))
+      const count = words.filter((x) => x.study).length
+      return { ...c, words, study_count: count, is_active: count === words.length }
+    })
+
   const remove = async () => {
     if (!confirm(`Удалить категорию «${cat.name}»? Слова останутся в своих словарях.`)) return
     try {
@@ -83,13 +102,21 @@ export default function CategoryPage() {
       </div>
 
       <label className="flex cursor-pointer items-center gap-3">
-        <input
-          type="checkbox"
-          className="size-6 accent-blue-600"
-          checked={cat.is_active}
+        <ActiveCheckbox
+          active={cat.is_active}
+          partial={cat.study_count > 0}
           onChange={toggleActive}
+          label="Использовать в тренировках"
         />
-        <span>Использовать в тренировках</span>
+        <span>
+          Использовать в тренировках
+          {!cat.is_active && cat.study_count > 0 && (
+            <span className="text-sm text-slate-500">
+              {' '}
+              · отмечено {cat.study_count} из {cat.words.length}
+            </span>
+          )}
+        </span>
       </label>
 
       <ResetKnownButton
@@ -135,6 +162,13 @@ export default function CategoryPage() {
         <ul className="divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
           {cat.words.map((w) => (
             <li key={w.id} className="flex items-center pr-1">
+              <StudyCheckbox
+                wordId={w.id}
+                greek={w.full_greek}
+                study={w.study ?? false}
+                via="category"
+                onChange={(study) => setStudy(w.id, study)}
+              />
               <KnownCheckbox
                 wordId={w.id}
                 greek={w.full_greek}
@@ -175,6 +209,7 @@ export default function CategoryPage() {
                   <span className="block truncate text-xs text-slate-400">
                     {w.dictionary_title}
                   </span>
+                  <AlsoIn dictionaries={w.also_in ?? []} />
                 </span>
               </Link>
               <AnswerStats answers={w.answers} />

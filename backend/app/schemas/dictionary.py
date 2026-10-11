@@ -65,6 +65,11 @@ class AnswerStats(BaseModel):
     total: int  # of the last 10 answers (fewer if the word was met fewer times)
 
 
+class DictionaryRef(BaseModel):
+    id: int
+    title: str
+
+
 class WordOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -88,6 +93,11 @@ class WordOut(BaseModel):
     position: int
     known: bool = False  # per user: «Я знаю это слово»
     answers: AnswerStats | None = None  # per user, dictionary/category pages: last 10 answers
+    # Per user, dictionary/category pages: «Изучать» ticked on this page (in the dictionary or
+    # in the category — the two are separate).
+    study: bool = False
+    # Dictionary/category pages: the other dictionaries with the same word («Есть в словарях»).
+    also_in: list["DictionaryRef"] = []
 
 
 class DictionaryIn(BaseModel):
@@ -108,7 +118,8 @@ class DictionaryOut(BaseModel):
     source: str
     is_published: bool
     word_count: int
-    is_active: bool
+    is_active: bool  # «Использовать в тренировках»: every word ticked «Изучать» (and new ones)
+    study_count: int = 0  # words ticked «Изучать» in it
     can_edit: bool
     author: str | None = None  # username of who made it
 
