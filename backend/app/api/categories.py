@@ -13,7 +13,7 @@ from app.schemas.category import (
     CategoryPatch,
     CategoryWordOut,
 )
-from app.schemas.dictionary import ActiveIn, ActiveSummary, AnswerStats, WordOut
+from app.schemas.dictionary import ActiveIn, ActiveSummary, AnswerStats, WordOrderIn, WordOut
 from app.services.selection import known_ids
 from app.services.stats import last_answers
 
@@ -97,15 +97,27 @@ def create_category(body: CategoryIn, user: CurrentUser, db: DbSession) -> Categ
     return _out(c, user, 0, False)
 
 
-@router.get("/{category_id}", response_model=CategoryDetailOut)
-def get_category(category_id: int, user: CurrentUser, db: DbSession) -> CategoryDetailOut:
-    c = _get(db, category_id)
-    rows = db.execute(
+def _words_query(c: Category, user: User):
+    """The words of a category as the user sees them, in the category's own order: the placed
+    ones («Порядок слов»), then the rest by dictionary and position."""
+    return (
         select(Word, Dictionary.title)
         .join(Dictionary, Word.dictionary_id == Dictionary.id)
         .where(Word.category_id == c.id, visible_filter(user))
-        .order_by(Dictionary.created_at, Word.position)
-    ).all()
+        .order_by(
+            Word.category_position.is_(None),
+            Word.category_position,
+            Dictionary.created_at,
+            Word.position,
+            Word.id,
+        )
+    )
+
+
+@router.get("/{category_id}", response_model=CategoryDetailOut)
+def get_category(category_id: int, user: CurrentUser, db: DbSession) -> CategoryDetailOut:
+    c = _get(db, category_id)
+    rows = db.execute(_words_query(c, user)).all()
     known = known_ids(db, user, [w.id for w, _ in rows])
     stats = last_answers(db, user, [w.id for w, _ in rows])
     words = [
@@ -121,6 +133,23 @@ def get_category(category_id: int, user: CurrentUser, db: DbSession) -> Category
     ]
     base = _out(c, user, len(words), c.id in _active_ids(db, user))
     return CategoryDetailOut(**base.model_dump(), words=words)
+
+
+@router.put("/{category_id}/order", status_code=status.HTTP_204_NO_CONTENT)
+def reorder_words(category_id: int, body: WordOrderIn, user: CurrentUser, db: DbSession) -> None:
+    """New order of the category's words (all the admin sees, each once) — dragged on the
+    category page. «Сортировка по категориям» in the trainers follows it."""
+    _require_admin(user)
+    c = _get(db, category_id)
+    by_id = {w.id: w for w, _ in db.execute(_words_query(c, user))}
+    if sorted(body.word_ids) != sorted(by_id):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Список слов изменился — обновите страницу и попробуйте ещё раз",
+        )
+    for position, word_id in enumerate(body.word_ids):
+        by_id[word_id].category_position = position
+    db.commit()
 
 
 @router.patch("/{category_id}", response_model=CategoryOut)

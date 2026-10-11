@@ -9,8 +9,10 @@ import {
   CountSlider,
   fetchTrainingWords,
   HideKnownToggle,
-  InOrderToggle,
   playableCount,
+  sortOf,
+  SortToggle,
+  type SortBy,
   trainingTotal,
   SessionShell,
   Toggle,
@@ -27,7 +29,8 @@ type StudySettings = {
   wordOnly: boolean
   hideKnown: boolean
   repeatKnown: boolean
-  inOrder: boolean
+  inOrder: boolean // «Сортировка»
+  sortBy: SortBy
 }
 
 export default function StudyPage() {
@@ -36,6 +39,7 @@ export default function StudyPage() {
     hideKnown: true,
     repeatKnown: false,
     inOrder: false,
+    sortBy: 'dictionary',
     count: 20,
     speak: true,
     wordOnly: false,
@@ -58,7 +62,7 @@ export default function StudyPage() {
           count,
           settings?.hideKnown ?? true,
           settings?.repeatKnown ?? false,
-          settings?.inOrder ?? false,
+          sortOf(settings),
         ),
       )
     } catch (e) {
@@ -96,7 +100,12 @@ export default function StudyPage() {
       >
         {settings && total ? (
           <>
-            <InOrderToggle checked={settings.inOrder} onChange={(inOrder) => update({ inOrder })} />
+            <SortToggle
+              inOrder={settings.inOrder}
+              sortBy={settings.sortBy}
+              categories={active?.categories ?? 0}
+              onChange={update}
+            />
             <Toggle
               label="Озвучивать слова"
               checked={settings.speak}

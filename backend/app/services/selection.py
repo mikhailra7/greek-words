@@ -3,6 +3,7 @@ active categories (from every visible dictionary), optionally without the words 
 marked as known. One place, so counters and trainers agree."""
 
 from collections.abc import Iterable
+from typing import Literal
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
@@ -105,52 +106,76 @@ def with_known(db: Session, user: User, words: list, schema) -> list:
     return out
 
 
-def in_dictionary_order(db: Session, user: User, words: list[Word], count: int) -> list[Word]:
-    """«Порядок по словарю» (SPEC): the words as in the dictionaries — the dictionaries in the
-    order of the «Словари» list, each by its word order; then the words that came from the
-    active categories, by category (and inside one, by dictionary and position). With fewer
-    words wanted than there are, each group gives a share proportional to its size, as one
-    unbroken run from a random place in it."""
-    import random
+SortMode = Literal["dictionary", "category"]
 
+
+def sorted_words(
+    db: Session, user: User, words: list[Word], count: int, sort: SortMode
+) -> list[Word]:
+    """«Сортировка» (SPEC). «по словарю»: the dictionaries in the order of the «Словари» list,
+    each by its word order; then the words that came from the active categories, by category.
+    «по категориям»: the words of the ticked categories, the categories in the order of the
+    «Категории» list, each by its own word order; then the rest (from ticked dictionaries,
+    not in a ticked category) as «по словарю». With fewer words wanted than there are, each
+    group gives a share proportional to its size, as one unbroken run from a random place."""
+    from app.models import Category
+
+    far = 1 << 30
     dict_order = {
         d_id: i
         for i, d_id in enumerate(
             db.scalars(select(Dictionary.id).where(_visible(user)).order_by(Dictionary.created_at))
         )
     }
-    active = set(
-        db.scalars(
-            select(UserActiveDictionary.dictionary_id).where(
-                UserActiveDictionary.user_id == user.id
-            )
-        )
-    )
-    from app.models import Category
-
     cat_order = {
         c_id: i
         for i, c_id in enumerate(
             db.scalars(select(Category.id).order_by(Category.position, Category.name))
         )
     }
+    active_dicts = set(
+        db.scalars(
+            select(UserActiveDictionary.dictionary_id).where(
+                UserActiveDictionary.user_id == user.id
+            )
+        )
+    )
+    active_cats = set(
+        db.scalars(
+            select(UserActiveCategory.category_id).where(UserActiveCategory.user_id == user.id)
+        )
+    )
+
+    def by_dictionary(w: Word) -> tuple:
+        return (dict_order.get(w.dictionary_id, far), w.position, w.id)
+
+    def by_category(w: Word) -> tuple:
+        placed = w.category_position is not None
+        return (not placed, w.category_position if placed else 0, *by_dictionary(w))
 
     def group(w: Word) -> tuple:
+        if sort == "category":
+            if w.category_id in active_cats:
+                return (0, cat_order.get(w.category_id, far))
+            return (1, dict_order.get(w.dictionary_id, far))
         # Not from an active dictionary (so it came with a category, or it's a known word in
         # «Повторить выученные»): its category if any, else its own dictionary.
-        if w.dictionary_id in active or w.category_id is None:
-            return (0, dict_order.get(w.dictionary_id, 1 << 30))
-        return (1, cat_order.get(w.category_id, 1 << 30))
+        if w.dictionary_id in active_dicts or w.category_id is None:
+            return (0, dict_order.get(w.dictionary_id, far))
+        return (1, cat_order.get(w.category_id, far))
 
     groups: dict[tuple, list[Word]] = {}
     for w in words:
         groups.setdefault(group(w), []).append(w)
     ordered = [
-        sorted(
-            groups[k], key=lambda w: (dict_order.get(w.dictionary_id, 1 << 30), w.position, w.id)
-        )
+        sorted(groups[k], key=by_category if sort == "category" and k[0] == 0 else by_dictionary)
         for k in sorted(groups)
     ]
+    return _runs(ordered, count)
+
+
+def _runs(ordered: list[list[Word]], count: int) -> list[Word]:
+    import random
 
     total = sum(len(g) for g in ordered)
     if count >= total:

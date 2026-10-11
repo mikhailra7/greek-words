@@ -2,7 +2,7 @@ import hashlib
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -86,6 +86,9 @@ class Word(Base):
         ForeignKey("categories.id", ondelete="SET NULL"), index=True
     )
     position: Mapped[int] = mapped_column(Integer, default=0)
+    # Place inside its category («Порядок слов» on a category page); None — not placed yet:
+    # after the placed ones, by dictionary and position. Reset when the category changes.
+    category_position: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     dictionary: Mapped[Dictionary] = relationship(back_populates="words")
@@ -128,3 +131,10 @@ class UserActiveDictionary(Base):
     dictionary_id: Mapped[int] = mapped_column(
         ForeignKey("dictionaries.id", ondelete="CASCADE"), primary_key=True
     )
+
+
+@event.listens_for(Word.category_id, "set")
+def _category_changed(word: Word, value, old, _initiator) -> None:
+    # A word moved to another category goes to the end of it, not to its old place number.
+    if value != old:
+        word.category_position = None

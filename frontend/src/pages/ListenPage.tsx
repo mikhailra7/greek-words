@@ -14,8 +14,10 @@ import {
   CountSlider,
   fetchTrainingWords,
   HideKnownToggle,
-  InOrderToggle,
   playableCount,
+  sortOf,
+  SortToggle,
+  type SortBy,
   trainingTotal,
   SessionShell,
   Toggle,
@@ -30,7 +32,8 @@ type Settings = {
   pauseSec: number
   hideKnown: boolean
   repeatKnown: boolean
-  inOrder: boolean
+  inOrder: boolean // «Сортировка»
+  sortBy: SortBy
   /** «Начать с русских слов»: Russian → pause → Greek → pause. */
   ruFirst: boolean
 }
@@ -48,6 +51,7 @@ export default function ListenPage() {
     hideKnown: true,
     repeatKnown: false,
     inOrder: false,
+    sortBy: 'dictionary',
     ruFirst: false,
     count: 20,
     pauseSec: DEFAULT_PAUSE_SEC,
@@ -70,7 +74,7 @@ export default function ListenPage() {
           count,
           settings?.hideKnown ?? true,
           settings?.repeatKnown ?? false,
-          settings?.inOrder ?? false,
+          sortOf(settings),
         ),
       )
     } catch (e) {
@@ -119,7 +123,12 @@ export default function ListenPage() {
               checked={settings.ruFirst}
               onChange={(ruFirst) => update({ ruFirst })}
             />
-            <InOrderToggle checked={settings.inOrder} onChange={(inOrder) => update({ inOrder })} />
+            <SortToggle
+              inOrder={settings.inOrder}
+              sortBy={settings.sortBy}
+              categories={active?.categories ?? 0}
+              onChange={update}
+            />
             {!settings.repeatKnown && (
               <HideKnownToggle
                 checked={settings.hideKnown}

@@ -60,6 +60,43 @@ test('word order: ↑ ↓ and dragging by ⋮⋮, saved at once', async ({ page,
   await expect(page.locator('li [lang=el].text-lg').first()).toHaveText('τέσσερα')
 })
 
+test('word order inside a category: its own, across dictionaries', async ({ page, request }) => {
+  const stamp = Date.now()
+  const a = await seedDictionary(request, `Кат-порядок A ${stamp}`, [
+    { greek: 'μήλο', translations_ru: ['яблоко'] },
+  ])
+  const b = await seedDictionary(request, `Кат-порядок B ${stamp}`, [
+    { greek: 'ψάρι', translations_ru: ['рыба'] },
+    { greek: 'τυρί', translations_ru: ['сыр'] },
+  ])
+  const cat = await (
+    await request.post('/api/categories', { data: { name: `Порядок ${stamp}` } })
+  ).json()
+  for (const d of [a, b]) {
+    for (const w of (await (await request.get(`/api/dictionaries/${d}`)).json()).words) {
+      await request.patch(`/api/words/${w.id}/category`, { data: { category_id: cat.id } })
+    }
+  }
+  const order = async () =>
+    (
+      (await (await request.get(`/api/categories/${cat.id}`)).json()).words as { greek: string }[]
+    ).map((w) => w.greek)
+  expect(await order()).toEqual(['μήλο', 'ψάρι', 'τυρί']) // not placed yet: by dictionary
+
+  await page.goto(`/categories/${cat.id}`)
+  await page.getByRole('button', { name: '↕ Порядок слов' }).click()
+  await page.getByRole('button', { name: 'Выше: τυρί' }).click()
+  await expect.poll(order).toEqual(['μήλο', 'τυρί', 'ψάρι'])
+  await page.getByRole('button', { name: 'Выше: τυρί' }).click()
+  await expect.poll(order).toEqual(['τυρί', 'μήλο', 'ψάρι'])
+  await page.getByRole('button', { name: 'Готово' }).click()
+  await page.reload()
+  await expect(page.locator('li [lang=el].text-lg').first()).toHaveText('τυρί')
+  // The dictionaries' own order isn't touched.
+  const bWords = (await (await request.get(`/api/dictionaries/${b}`)).json()).words
+  expect(bWords.map((w: { greek: string }) => w.greek)).toEqual(['ψάρι', 'τυρί'])
+})
+
 test('«5/7» next to words: the last answers, on the dictionary and category pages', async ({
   page,
   request,

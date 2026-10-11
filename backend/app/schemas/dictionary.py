@@ -141,3 +141,9 @@ class DictionaryFile(BaseModel):
     title: Annotated[Text, Field(min_length=1, max_length=120)]
     description: OptText = None
     words: list[WordIn]
+
+
+class WordOrderIn(BaseModel):
+    """«Порядок слов» of a dictionary or a category: every word id, each once."""
+
+    word_ids: list[int]

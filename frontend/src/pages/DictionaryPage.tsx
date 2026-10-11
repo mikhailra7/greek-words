@@ -212,7 +212,7 @@ export default function DictionaryPage() {
         <>
           <p className="text-sm text-slate-500">
             Держите ⋮⋮ и перетаскивайте слово или двигайте стрелками. Порядок сохраняется сразу — по
-            нему идёт «Порядок по словарю» в тренировках.
+            нему идёт «Сортировка по словарю» в тренировках.
           </p>
           <WordOrder key={orderVersion} words={dict.words} onChange={saveOrder} />
         </>

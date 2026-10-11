@@ -20,6 +20,7 @@ from app.schemas.dictionary import (
     DictionaryPatch,
     WordCategoryIn,
     WordIn,
+    WordOrderIn,
     WordOut,
 )
 from app.schemas.importing import PasteJsonIn
@@ -243,14 +244,10 @@ def set_active(
     return active_summary(db, user)
 
 
-class WordOrderIn(BaseModel):
-    word_ids: list[int]
-
-
 @router.put("/dictionaries/{dictionary_id}/order", status_code=status.HTTP_204_NO_CONTENT)
 def reorder_words(dictionary_id: int, body: WordOrderIn, user: CurrentUser, db: DbSession) -> None:
     """New order of the words (all of them, each once) — dragged on the dictionary page.
-    «Порядок по словарю» in the trainers follows it."""
+    «Сортировка по словарю» in the trainers follows it."""
     d = _get_editable(db, user, dictionary_id)
     by_id = {w.id: w for w in d.words}
     if sorted(body.word_ids) != sorted(by_id):

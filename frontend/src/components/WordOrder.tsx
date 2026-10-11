@@ -1,23 +1,23 @@
 import { useRef, useState, type PointerEvent } from 'react'
 import type { Word } from '../api/types.ts'
 
-// «Порядок слов» on a dictionary page (admins): hold the ⋮⋮ handle and drag a word to its
-// place (finger or mouse), or nudge it with ↑ ↓. Every change is handed to `onChange` — the
-// page saves it. The order is what «Порядок по словарю» in the trainers follows.
+// «Порядок слов» on a dictionary or category page (admins): hold the ⋮⋮ handle and drag a
+// word to its place (finger or mouse), or nudge it with ↑ ↓. Every change is handed to
+// `onChange` — the page saves it. The order is what «Сортировка» in the trainers follows.
 
 const EDGE = 70 // px from the top/bottom of the screen where the page scrolls by itself
 
-export default function WordOrder({
+export default function WordOrder<W extends Word>({
   words,
   onChange,
 }: {
-  words: Word[]
-  onChange: (words: Word[]) => void
+  words: W[]
+  onChange: (words: W[]) => void
 }) {
   const [order, setOrderState] = useState(words)
   // The live order: pointer events come faster than re-renders.
   const current = useRef(words)
-  const setOrder = (next: Word[]) => {
+  const setOrder = (next: W[]) => {
     current.current = next
     setOrderState(next)
   }

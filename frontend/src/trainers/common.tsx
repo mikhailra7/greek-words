@@ -75,35 +75,82 @@ export function sessionKey(batch: object): string {
   return key
 }
 
+export type SortBy = 'dictionary' | 'category'
+
 export async function fetchTrainingWords(
   count: number,
   hideKnown: boolean,
   repeatKnown = false,
-  inOrder = false,
+  sortBy: SortBy | null = null, // null — shuffled
 ): Promise<Word[]> {
   return api<Word[]>(
     `/training/words?count=${count}&hide_known=${hideKnown}&known_only=${repeatKnown}` +
-      `&in_order=${inOrder}`,
+      `&in_order=${sortBy !== null}&sort=${sortBy ?? 'dictionary'}`,
   )
 }
 
-// «Порядок по словарю» — «Изучение» and «Аудио повторение»: the words as in the dictionaries
-// instead of shuffled (the server picks them, see app/services/selection.py).
-export function InOrderToggle({
-  checked,
+/** The settings' «Сортировка» → what fetchTrainingWords wants. */
+export const sortOf = (s: { inOrder: boolean; sortBy?: SortBy } | null) =>
+  s?.inOrder ? (s.sortBy ?? 'dictionary') : null
+
+const SORT_HINTS: Record<SortBy, string> = {
+  dictionary:
+    'Словари — в порядке списка «Словари», внутри — по порядку слов; потом слова из отмеченных категорий.',
+  category:
+    'Отмеченные категории — в порядке списка «Категории», внутри — по порядку слов категории; потом остальные слова, как по словарю.',
+}
+
+// «Сортировка» — «Изучение» and «Аудио повторение»: the words in order instead of shuffled,
+// «по словарю» or «по категориям» (the server picks them, see app/services/selection.py).
+export function SortToggle({
+  inOrder,
+  sortBy,
+  categories,
   onChange,
 }: {
-  checked: boolean
-  onChange: (v: boolean) => void
+  inOrder: boolean
+  sortBy: SortBy
+  categories: number // ticked categories
+  onChange: (v: { inOrder?: boolean; sortBy?: SortBy }) => void
 }) {
   return (
     <div>
-      <Toggle label="Порядок по словарю" checked={checked} onChange={onChange} />
-      {checked && (
-        <p className="mt-1 ml-9 text-sm text-slate-500">
-          Как в словаре: словари — в порядке списка «Словари», внутри — по порядку слов. Если
-          выбрано меньше слов, из каждого словаря берётся подряд кусок со случайного места.
-        </p>
+      <Toggle label="Сортировка" checked={inOrder} onChange={(v) => onChange({ inOrder: v })} />
+      {inOrder && (
+        <div className="mt-2 ml-9 space-y-1">
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Как сортировать">
+            {(
+              [
+                ['dictionary', 'По словарю'],
+                ['category', 'По категориям'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={sortBy === value}
+                onClick={() => onChange({ sortBy: value })}
+                className={`rounded-xl border-2 px-3 py-2 text-sm ${
+                  sortBy === value
+                    ? 'border-blue-600 bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100'
+                    : 'border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-sm text-slate-500">
+            {SORT_HINTS[sortBy]} Если выбрано меньше слов, из каждого словаря или категории берётся
+            подряд кусок со случайного места.
+          </p>
+          {sortBy === 'category' && categories === 0 && (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Категории для изучения не отмечены — слова пойдут по словарю.
+            </p>
+          )}
+        </div>
       )}
     </div>
   )

@@ -6,6 +6,7 @@ import AnswerStats from '../components/AnswerStats.tsx'
 import { KnownCheckbox, ResetKnownButton } from '../components/KnownCheckbox.tsx'
 import Sheet from '../components/Sheet.tsx'
 import SpeakButton from '../components/SpeakButton.tsx'
+import WordOrder from '../components/WordOrder.tsx'
 import { Button, Card, ErrorText, Spinner } from '../components/ui.tsx'
 import { categoryLabel } from '../lib/categories.ts'
 import { CategoryForm } from './CategoriesTab.tsx'
@@ -17,6 +18,9 @@ export default function CategoryPage() {
   const [cat, setCat] = useState<CategoryDetail | null>(null)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(false)
+  const [reordering, setReordering] = useState(false)
+  // Bumped when a failed save brings back the server's order: WordOrder starts over from it.
+  const [orderVersion, setOrderVersion] = useState(0)
 
   const load = useCallback(async () => setCat(await api<CategoryDetail>(`/categories/${id}`)), [id])
 
@@ -37,6 +41,21 @@ export default function CategoryPage() {
     } catch (e) {
       setError((e as Error).message)
       await load()
+    }
+  }
+
+  const saveOrder = async (words: CategoryDetail['words']) => {
+    setCat((c) => c && { ...c, words })
+    setError('')
+    try {
+      await api(`/categories/${cat.id}/order`, {
+        method: 'PUT',
+        body: JSON.stringify({ word_ids: words.map((w) => w.id) }),
+      })
+    } catch (e) {
+      setError((e as Error).message)
+      await load()
+      setOrderVersion((v) => v + 1)
     }
   }
 
@@ -81,6 +100,15 @@ export default function CategoryPage() {
 
       {cat.can_edit && (
         <div className="flex flex-wrap gap-2">
+          {cat.words.length > 1 && (
+            <Button
+              variant="secondary"
+              onClick={() => setReordering(!reordering)}
+              aria-pressed={reordering}
+            >
+              {reordering ? 'Готово' : '↕ Порядок слов'}
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => setEditing(true)}>
             Переименовать
           </Button>
@@ -91,7 +119,15 @@ export default function CategoryPage() {
       )}
       <ErrorText>{error}</ErrorText>
 
-      {cat.words.length === 0 ? (
+      {reordering ? (
+        <>
+          <p className="text-sm text-slate-500">
+            Держите ⋮⋮ и перетаскивайте слово или двигайте стрелками. Порядок сохраняется сразу — по
+            нему идёт «Сортировка по категориям» в тренировках.
+          </p>
+          <WordOrder key={orderVersion} words={cat.words} onChange={saveOrder} />
+        </>
+      ) : cat.words.length === 0 ? (
         <Card className="text-center text-slate-500">
           Слов пока нет. Категорию слову можно выбрать в его карточке в словаре.
         </Card>

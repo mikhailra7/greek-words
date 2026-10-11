@@ -435,15 +435,19 @@ test('write: «Экранная клавиатура» — the site keyboard on 
   await page.waitForTimeout(700) // saved with a short debounce
 })
 
-test('«Порядок по словарю»: «Изучение» goes as in the dictionary; «Аудио» asks for it too', async ({
+test('«Сортировка»: «по словарю» in «Изучение» goes as in the dictionary; «Аудио» asks by categories', async ({
   page,
 }) => {
   await page.goto('/study')
   await page.getByLabel('Показывать только слово').uncheck()
   await page.getByLabel('Озвучивать слова').uncheck()
-  const inOrder = page.getByLabel('Порядок по словарю')
+  const inOrder = page.getByLabel('Сортировка', { exact: true })
   await inOrder.check()
-  await expect(page.getByText('Как в словаре: словари — в порядке списка')).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'По словарю' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
+  await expect(page.getByText('Словари — в порядке списка «Словари»')).toBeVisible()
   await setSlider(page, WORDS.length)
   await page.getByRole('button', { name: 'Начать' }).click()
   const seen: string[] = []
@@ -457,13 +461,16 @@ test('«Порядок по словарю»: «Изучение» goes as in th
   await inOrder.uncheck() // leave the shared user as it was
 
   await page.goto('/listen')
-  const listenOrder = page.getByLabel('Порядок по словарю')
+  const listenOrder = page.getByLabel('Сортировка', { exact: true })
   await listenOrder.check()
-  const asked = page.waitForRequest(/\/api\/training\/words\?.*in_order=true/)
+  await page.getByRole('radio', { name: 'По категориям' }).click()
+  await expect(page.getByText('Отмеченные категории — в порядке списка')).toBeVisible()
+  const asked = page.waitForRequest(/\/api\/training\/words\?.*in_order=true&sort=category/)
   await page.getByRole('button', { name: 'Начать' }).click()
   await asked
   page.once('dialog', (d) => d.accept()) // «Закончить?»
   await page.getByRole('button', { name: 'Выйти' }).click()
+  await page.getByRole('radio', { name: 'По словарю' }).click() // leave the shared user as it was
   await listenOrder.uncheck()
   await page.waitForTimeout(700)
 })
